@@ -14,7 +14,7 @@ Includes **ELO rating updates** for leagues and persistent skill tracking, plus 
   - Deterministic seed-based fallback ordering
   - BYEs, forfeits, penalties, and *double-losses* handled correctly
   - `acceptSingleEntryMatches` for lenient ingestion (auto-mirrors missing results)
-  - `elimRound` field for Single Elimination to indicate round reached
+  - `eliminationRound` field for Single Elimination to indicate round reached
 
 - 🤝 **Pairings**
   - Swiss pairing generator (avoids rematches, assigns/rotates byes, light backtracking)
@@ -130,10 +130,10 @@ const singleElim = computeStandings({
 });
 
 console.table(
-  singleElim.map(r => ({
+  singleElimination.map(r => ({
     Rank: r.rank,
     Player: r.playerId,
-    ElimRound: r.elimRound, // 3 = Champion if maxRound=2
+    EliminationRound: r.eliminationRound, // 3 = Champion if maxRound=2
   }))
 );
 ```
@@ -352,12 +352,12 @@ If you’re upgrading from a previous version (≤ 1.x) of **`rankings-core`**, 
   You can continue using `computeStandings({ mode: "swiss" | "roundrobin" })` as before.
 
 - **New:** `mode: "singleelimination"` is now supported by the same unified `computeStandings()` API.  
-  It introduces a new `elimRound` field in results to indicate how far each player advanced.  
-  Example: in a 4-player bracket (maxRound = 2), the champion gets `elimRound = 3`.
+  It introduces a new `eliminationRound` field in results to indicate how far each player advanced.  
+  Example: in a 4-player bracket (maxRound = 2), the champion gets `eliminationRound = 3`.
 
 - **New type exports:**  
   - `ComputeSingleElimOptions` for configuration  
-  - `SingleElimStandingRow` for output type with `elimRound`
+  - `SingleElimStandingRow` for output type with `eliminationRound`
 
 - **Double-loss support:** both players can be given `MatchResult.LOSS` in the same pairing.  
   Just make sure both sides are explicitly recorded.
@@ -372,7 +372,7 @@ If you’re upgrading from a previous version (≤ 1.x) of **`rankings-core`**, 
 - [x] Unified `computeStandings()` dispatcher  
 - [x] `acceptSingleEntryMatches` (lenient ingestion)  
 - [x] Optional WebAssembly build for browsers  
-- [x] **Single Elimination standings engine + elimRound support** ✅  
+- [x] **Single Elimination standings engine + eliminationRound support** ✅  
 - [ ] Single Elimination pairing generator  
 - [ ] Glicko‑2 rating system  
 - [ ] JSON schema validation  

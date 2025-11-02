@@ -113,11 +113,11 @@ describe('standings index entrypoint', () => {
     expect(res).toHaveLength(4);
     // champion
     expect(res[0].playerId).toBe('A');
-    expect(res[0].elimRound).toBe(3); // maxRound=2 → champ=3
+    expect(res[0].eliminationRound).toBe(3); // maxRound=2 → champ=3
 
     // finalist
     expect(res[1].playerId).toBe('C');
-    expect(res[1].elimRound).toBe(2);
+    expect(res[1].eliminationRound).toBe(2);
 
     // semifinal losers
     const lastTwo = [res[2].playerId, res[3].playerId].sort();

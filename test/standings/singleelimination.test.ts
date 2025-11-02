@@ -28,7 +28,7 @@ describe('computeSingleElimStandings', () => {
 
     expect(res).toHaveLength(4);
     expect(res[0].playerId).toBe('A');
-    expect((res[0] as SingleEliminationStandingRow).elimRound).toBe(3); // maxRound=2 → champ=3
+    expect((res[0] as SingleEliminationStandingRow).eliminationRound).toBe(3); // maxRound=2 → champ=3
     expect(res[1].playerId).toBe('C');
 
     const lastTwo = [res[2].playerId, res[3].playerId].sort();
@@ -204,8 +204,8 @@ describe('computeSingleElimStandings', () => {
     // A/B MUST have elimRound = 1
     const a = res.find((r) => r.playerId === 'A') as SingleEliminationStandingRow;
     const b = res.find((r) => r.playerId === 'B') as SingleEliminationStandingRow;
-    expect(a.elimRound).toBe(1);
-    expect(b.elimRound).toBe(1);
+    expect(a.eliminationRound).toBe(1);
+    expect(b.eliminationRound).toBe(1);
   });
 
   it('handles a double loss in the FINAL (no champion), and uses seeding to order the two finalists', () => {
@@ -236,8 +236,8 @@ describe('computeSingleElimStandings', () => {
     // Because BOTH finalists lost in round 2, neither should get elimRound=3.
     const a = res.find((r) => r.playerId === 'A') as SingleEliminationStandingRow;
     const c = res.find((r) => r.playerId === 'C') as SingleEliminationStandingRow;
-    expect(a.elimRound).toBe(2);
-    expect(c.elimRound).toBe(2);
+    expect(a.eliminationRound).toBe(2);
+    expect(c.eliminationRound).toBe(2);
 
     // Since they tied on elimRound, we use seeding → A before C
     expect(res[0].playerId).toBe('A');

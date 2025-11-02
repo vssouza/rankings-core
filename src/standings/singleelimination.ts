@@ -6,7 +6,7 @@ import {
   type ComputeSingleEliminationOptions,
   MatchResult,
 } from './types';
-import { fnv1a } from '../utils/hash'; // or inline it if you didn't extract
+import { fnv1a } from '../utils/hash';
 
 export function computeSingleEliminationStandings(
   matches: Match[],
@@ -52,21 +52,22 @@ export function computeSingleEliminationStandings(
     const penalties = ms.reduce((a, m) => a + (m.penalties || 0), 0);
 
     // champion: won in the final round
-    let elimRound: number;
+    let eliminationRound: number;
     if (
       last &&
       last.round === maxRound &&
       (last.result === MatchResult.WIN || last.result === MatchResult.FORFEIT_WIN)
     ) {
-      elimRound = maxRound + 1;
+      // champion is "one round further" than the deepest round
+      eliminationRound = maxRound + 1;
     } else {
-      elimRound = last ? last.round : 0;
+      eliminationRound = last ? last.round : 0;
     }
 
     rows.push({
-      rank: 0, // will fill after sort
+      rank: 0,
       playerId: pid,
-      matchPoints: wins,     // not super meaningful in SE but keeps shape
+      matchPoints: wins,
       mwp: 0,
       omwp: 0,
       gwp: 0,
@@ -84,14 +85,22 @@ export function computeSingleEliminationStandings(
       opponents: ms
         .map((m) => m.opponentId)
         .filter((x): x is PlayerID => x !== null),
-      elimRound,
-    });
+      // new, readable field
+      eliminationRound,
+      // backward compat for existing consumers/tests that still expect "elimRound"
+      // remove in next major
+      elimRound: eliminationRound,
+    } as SingleEliminationStandingRow & { elimRound: number });
   }
 
   // sort
-  rows.sort((a, b) => {
+  rows.sort((a: any, b: any) => {
+    // prefer the new name, but fall back to old if needed
+    const aRound = typeof a.eliminationRound === 'number' ? a.eliminationRound : a.elimRound;
+    const bRound = typeof b.eliminationRound === 'number' ? b.eliminationRound : b.elimRound;
+
     // 1) deeper in bracket wins
-    if (b.elimRound !== a.elimRound) return b.elimRound - a.elimRound;
+    if (bRound !== aRound) return bRound - aRound;
 
     // 2) seeding if provided
     const sa = seeding[a.playerId];
