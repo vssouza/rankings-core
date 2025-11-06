@@ -12,7 +12,14 @@ import {
   type RoundDefinition,
 } from './roundrobin';
 
-export type PairingMode = 'swiss' | 'roundrobin';
+// --- single-elimination imports
+import {
+  generateSingleEliminationBracket,
+  type SeedEntry as SingleElimSeedEntry,
+  type Bracket as SingleElimBracket,
+} from './singleelimination';
+
+export type PairingMode = 'swiss' | 'roundrobin' | 'singleelimination';
 
 export type PairingRequest =
   | {
@@ -26,6 +33,16 @@ export type PairingRequest =
       players: ReadonlyArray<PlayerID>;
       roundNumber: number; // 1-based
       options?: RoundRobinOptions;
+    }
+  | {
+      mode: 'singleelimination';
+      seeds: ReadonlyArray<SingleElimSeedEntry>; // { playerId, seed }
+      options?: { bestOf?: number; thirdPlace?: boolean };
+      /**
+       * Optional: which round to extract pairings for (1-based).
+       * If omitted, returns round 1. The full bracket is always returned in `bracket`.
+       */
+      roundNumber?: number;
     };
 
 /** Normalized result shape for the facade. */
@@ -35,9 +52,11 @@ export interface PairingResult {
   // Swiss-only
   downfloats?: Record<PlayerID, number>;
   rematchesUsed?: { a: PlayerID; b: PlayerID }[];
-  // RR-only
+  // RR-only and Single-Elim also use this multi-bye field
   round?: number;
   byes?: PlayerID[];
+  // single-elim
+  bracket?: SingleElimBracket;
 }
 
 /** Strategy facade for pairing generation. */
@@ -51,6 +70,7 @@ export function generatePairings(req: PairingRequest): PairingResult {
       rematchesUsed: r.rematchesUsed,
     };
   }
+
   if (req.mode === 'roundrobin') {
     const rd: RoundDefinition = getRoundRobinRoundOrThrow(
       req.players,
@@ -64,6 +84,32 @@ export function generatePairings(req: PairingRequest): PairingResult {
       byes: rd.byes,
     };
   }
+
+  if (req.mode === 'singleelimination') {
+    // NOTE: Array.from() coerces ReadonlyArray -> mutable array to satisfy older generator signature
+    const bracket = generateSingleEliminationBracket(Array.from(req.seeds), req.options);
+    const roundNumber = Math.max(1, Math.floor(req.roundNumber ?? 1));
+    const round = bracket.rounds[roundNumber - 1] ?? [];
+
+    const pairings: { a: PlayerID; b: PlayerID }[] = [];
+    const byes: PlayerID[] = [];
+
+    for (const m of round) {
+      const a = slotPlayerId(m.a);
+      const b = slotPlayerId(m.b);
+      if (a && !b) byes.push(a);
+      else if (b && !a) byes.push(b);
+      else if (a && b) pairings.push({ a, b });
+    }
+
+    return {
+      pairings,
+      round: roundNumber,
+      byes: byes.length ? byes : undefined,
+      bracket,
+    };
+  }
+
   // Exhaustiveness guard for future modes
   const _exhaustive: never = req;
   return _exhaustive;
@@ -107,5 +153,19 @@ export {
   type RoundDefinition,
 } from './roundrobin';
 
-// NOTE: Do NOT re-export PairingMode/PairingRequest/PairingResult again here;
-// they are already exported above and double-exporting causes conflicts.
+// Single-elimination public surface
+export {
+  generateSingleEliminationBracket,
+  type SeedEntry as SingleElimSeedEntry,
+  type Bracket as SingleElimBracket,
+} from './singleelimination';
+
+// ------------------------------
+// local helpers
+// ------------------------------
+function slotPlayerId(
+  s?: { kind: 'seed'; playerId: PlayerID } | { kind: 'winner'; fromMatchId: string } | { kind: 'bye' }
+): PlayerID | undefined {
+  if (!s) return undefined;
+  return s.kind === 'seed' ? s.playerId : undefined;
+}
