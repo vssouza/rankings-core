@@ -1,6 +1,9 @@
-// src/standings/types.ts
-// Shared types for standings engines (Swiss, Round-Robin, ...)
+// src/index.ts
+// Public package entrypoint: types + re-exports for standings, pairings, ratings, etc.
 
+// ------------------------------
+// Standings shared types
+// ------------------------------
 export type PlayerID = string;
 
 export enum MatchResult {
@@ -18,9 +21,12 @@ export interface Match {
   playerId: PlayerID;
   opponentId: PlayerID | null; // null → bye
   result: MatchResult;
+
+  // Keep these required if your engines expect them; flip to optional if you adopted lenient ingestion
   gameWins: number;
   gameLosses: number;
   gameDraws: number;
+
   // Optional per-match extras
   opponentGameWins?: number;
   opponentGameLosses?: number;
@@ -34,11 +40,11 @@ export interface StandingRow {
 
   // Primary points and tie-breakers
   matchPoints: number;
-  mwp: number; // Match Win %
-  omwp: number; // Opponents’ Match Win %
-  gwp: number; // Game Win %
-  ogwp: number; // Opponents’ Game Win %
-  sb: number; // Sonneborn–Berger (strength of victory)
+  mwp: number;   // Match Win %
+  omwp: number;  // Opponents’ Match Win %
+  gwp: number;   // Game Win %
+  ogwp: number;  // Opponents’ Game Win %
+  sb: number;    // Sonneborn–Berger
 
   // Record summary
   wins: number;
@@ -47,7 +53,7 @@ export interface StandingRow {
   byes: number;
   roundsPlayed: number;
 
-  // Game-level aggregates (for visibility)
+  // Game-level aggregates
   gameWins: number;
   gameLosses: number;
   gameDraws: number;
@@ -112,7 +118,7 @@ export interface ComputeSingleEliminationOptions {
   seeding?: Record<PlayerID, number>;
   /**
    * If you have a 3rd-place match in the data and want the function
-   * to honor it. We can expand this later.
+   * to honor it.
    */
   useBronzeMatch?: boolean;
 }
@@ -123,5 +129,58 @@ export interface ComputeSingleEliminationOptions {
  */
 export interface SingleEliminationStandingRow extends StandingRow {
   /** e.g. maxRound+1 for champion, or the round they lost in */
-  elimRound: number;
+  eliminationRound: number;
+
+  /** @deprecated Use `eliminationRound` instead. Included for backwards compat. */
+  elimRound?: number;
 }
+
+// ------------------------------
+// Public API re-exports
+// ------------------------------
+
+// Standings engines (adjust paths to your project layout)
+export {
+  computeStandings,
+  type ComputeStandingsRequest, // if you expose a unified request type
+} from './standings'; // <- your dispatcher module (if different, change path)
+
+// Pairings facade + modes
+export {
+  generatePairings,
+  generatePairingsDeprecated,
+  type PairingMode,
+  type PairingRequest,
+  type PairingResult,
+} from './pairings';
+
+// Swiss pairing specific (optional, already reachable via ./pairings)
+export {
+  generateSwissPairings,
+  type SwissPairingOptions,
+  type SwissPairingResult,
+} from './pairings/swiss';
+
+// Round-robin pairing specific (optional re-exports)
+export {
+  buildRoundRobinSchedule,
+  getRoundRobinRound,
+  type RoundRobinOptions,
+  type RoundDefinition,
+} from './pairings/roundrobin';
+
+// Single-elimination pairing utilities
+export {
+  generateSingleEliminationBracket,
+  applyResult,
+  autoAdvanceByes,
+  seedPositions,
+  type SeedEntry as SingleElimSeedEntry,
+  type Bracket as SingleElimBracket,
+} from './pairings/singleelimination';
+
+// Ratings (if you export them from a ratings module)
+export {
+  updateEloRatings,
+  type EloOptions,
+} from './ratings'; // change path if needed

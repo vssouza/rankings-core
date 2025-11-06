@@ -19,7 +19,7 @@ Includes **ELO rating updates** for leagues and persistent skill tracking, plus 
 - 🤝 **Pairings**
   - Swiss pairing generator (avoids rematches, assigns/rotates byes, light backtracking)
   - Round-Robin schedule generator (supports odd/even players, stable byes)
-  - (Single Elimination pairing generation planned)
+  - **Single Elimination pairing generator (new)** — build a bracket from seeds, surface R1 BYEs, and retrieve per-round pairings via the facade
   - Generic `generatePairings({ mode })` facade to route between strategies
 
 - 📈 **Ratings**
@@ -130,7 +130,7 @@ const singleElim = computeStandings({
 });
 
 console.table(
-  singleElimination.map(r => ({
+  singleElim.map(r => ({
     Rank: r.rank,
     Player: r.playerId,
     EliminationRound: r.eliminationRound, // 3 = Champion if maxRound=2
@@ -164,7 +164,7 @@ interface ComputeStandingsRequest {
 
 ## ♻️ Pairings
 
-Use the facade to generate either Swiss or Round‑Robin pairings.
+Use the facade to generate **Swiss**, **Round‑Robin**, or **Single Elimination** pairings.
 
 ### Swiss Pairings
 
@@ -197,22 +197,24 @@ console.log(result);
 */
 ```
 
-### Round‑Robin Pairings (schedule)
+### Round‑Robin Pairings (per round)
 
 ```ts
 import { generatePairings } from "rankings-core";
 
-const result = generatePairings({
+const rr = generatePairings({
   mode: "roundrobin",
   players: ["A", "B", "C", "D", "E"],
   roundNumber: 2,
 });
 
-console.log(result);
+console.log(rr);
 /*
 {
   pairings: [ {a:"A", b:"C"}, {a:"B", b:"D"} ],
-  byes: ["E"]
+  round: 2,
+  byes: ["E"],
+  bye: "E"
 }
 */
 ```
@@ -225,11 +227,79 @@ import { buildRoundRobinSchedule } from "rankings-core";
 const rounds = buildRoundRobinSchedule(["A","B","C","D"]);
 /*
 [
-  { round: 1, pairings: [{a:"A",b:"B"},{a:"C",b:"D"}] },
-  { round: 2, pairings: [{a:"A",b:"C"},{a:"B",b:"D"}] },
-  { round: 3, pairings: [{a:"A",b:"D"},{a:"B",b:"C"}] }
+  { round: 1, pairings: [{a:"A",b:"B"},{a:"C",b:"D"}], byes: [] },
+  { round: 2, pairings: [{a:"A",b:"C"},{a:"B",b:"D"}], byes: [] },
+  { round: 3, pairings: [{a:"A",b:"D"},{a:"B",b:"C"}], byes: [] }
 ]
 */
+```
+
+### ✅ Single Elimination Pairings (new)
+
+Use the **facade** to request pairings for any round. Under the hood, it builds a full bracket, auto‑advances R1 BYEs, and returns the pairings for the requested round along with the full `bracket` object.
+
+```ts
+import { generatePairings, type SingleElimSeedEntry } from "rankings-core";
+
+// 5 entrants → 8-slot bracket → R1 will contain BYEs
+const seeds: ReadonlyArray<SingleElimSeedEntry> = [
+  { playerId: "A", seed: 1 },
+  { playerId: "B", seed: 2 },
+  { playerId: "C", seed: 3 },
+  { playerId: "D", seed: 4 },
+  { playerId: "E", seed: 5 },
+];
+
+// Round 1 (quarters in size=8): returns concrete pairings + byes if any
+const r1 = generatePairings({
+  mode: "singleelimination",
+  seeds,
+  roundNumber: 1,
+  options: { bestOf: 3, thirdPlace: true }
+});
+
+console.log(r1.pairings, r1.byes, r1.bracket);
+
+// Later, after reporting R1 results, you can request Round 2 (semis) pairings:
+const r2 = generatePairings({
+  mode: "singleelimination",
+  seeds,
+  roundNumber: 2
+});
+```
+
+#### Low-level Single Elimination utilities (advanced)
+
+```ts
+import {
+  generateSingleEliminationBracket,
+  applyResult,
+  autoAdvanceByes,
+  seedPositions,
+  type SingleElimSeedEntry as SeedEntry,
+} from "rankings-core";
+
+const bracket = generateSingleEliminationBracket(
+  [
+    { playerId: "A", seed: 1 },
+    { playerId: "B", seed: 2 },
+    { playerId: "C", seed: 3 },
+    { playerId: "D", seed: 4 },
+    { playerId: "E", seed: 5 }, // → auto-fills BYEs to reach power-of-two
+  ],
+  { bestOf: 3, thirdPlace: true }
+);
+
+// R1 BYEs auto-advance on generation; you can call this again if you mutate:
+autoAdvanceByes(bracket);
+
+// Report a result by match id:
+applyResult(bracket, "R1-M1", { winner: "A" });
+
+// Semifinal losers route to the "BRONZE" match automatically when `thirdPlace: true`.
+
+// Seeding helper (interleaving):
+console.log(seedPositions(8)); // [1, 8, 4, 5, 2, 7, 3, 6]
 ```
 
 ---
@@ -330,7 +400,7 @@ Everything is covered by **Vitest**:
 | Module  | Coverage highlights |
 |---------|---------------------|
 | Standings | Swiss · Round‑Robin · Single Elimination, tie‑breakers, BYEs, penalties, double‑loss cases |
-| Pairings  | Swiss pairing rules, rematch avoidance, backtracking, RR schedules |
+| Pairings  | Swiss pairing rules, rematch avoidance, backtracking, RR schedules, **Single Elimination bracket + round pairings** |
 | Ratings   | ELO updates, draws, per‑player K, floors, caps, modes |
 | Core      | Determinism, immutability, snapshot stability |
 
@@ -358,6 +428,7 @@ If you’re upgrading from a previous version (≤ 1.x) of **`rankings-core`**, 
 - **New type exports:**  
   - `ComputeSingleElimOptions` for configuration  
   - `SingleElimStandingRow` for output type with `eliminationRound`
+  - `SingleElimSeedEntry`, `SingleElimBracket` for pairings
 
 - **Double-loss support:** both players can be given `MatchResult.LOSS` in the same pairing.  
   Just make sure both sides are explicitly recorded.
@@ -373,7 +444,7 @@ If you’re upgrading from a previous version (≤ 1.x) of **`rankings-core`**, 
 - [x] `acceptSingleEntryMatches` (lenient ingestion)  
 - [x] Optional WebAssembly build for browsers  
 - [x] **Single Elimination standings engine + eliminationRound support** ✅  
-- [ ] Single Elimination pairing generator  
+- [x] **Single Elimination pairing generator + facade support** ✅  
 - [ ] Glicko‑2 rating system  
 - [ ] JSON schema validation  
 
