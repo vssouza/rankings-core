@@ -35,7 +35,12 @@ export default defineConfig({
         // Any AssemblyScript source (your case: rankings-core/wasm/assembly/index.ts)
         '**/wasm/assembly/**',
         'wasm/assembly/**',
-        'src/**/wasm/assembly/**',
+        'src/**/wasm/assembly/**',        
+        'wasm/dist/**',
+        'src/wasm/wasm-bridge.ts',
+        // and any other internal build artifacts:
+        '**/*.d.ts',
+        '**/dist/**',
 
         // Compiled wasm binaries and any bridge stubs you don’t want covered
         '**/*.wasm',

@@ -1,10 +1,51 @@
 // test/index.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
-/**
- * Hoist-safe mocks for modules we don't want to fully exercise here.
- * We use the REAL single-elimination module to validate bracket wiring.
- */
+// ---- Types for guards ----
+import type { SingleEliminationStandingRow, EloOptions } from '../src';
+
+// ---------------------------------------------------------
+// Compile-time type sanity checks for public API types
+// ---------------------------------------------------------
+
+// This will fail to compile if SingleEliminationStandingRow
+// does NOT allow `elimRound?: number` or misses required fields.
+const _singleElimRowExample: SingleEliminationStandingRow = {
+  playerId: 'P1',
+  rank: 1,
+  matchPoints: 9,
+  mwp: 1,
+  omwp: 1,
+  gwp: 1,
+  ogwp: 1,
+  sb: 0,
+  wins: 3,
+  losses: 0,
+  draws: 0,
+  byes: 0,
+  roundsPlayed: 3,
+  gameWins: 6,
+  gameLosses: 0,
+  gameDraws: 0,
+  penalties: 0,
+  opponents: [],
+  eliminationRound: 3,
+  // deprecated but still present in the public type:
+  elimRound: 3,
+};
+
+// This will fail to compile if EloOptions does not expose drawScore.
+const _eloOptionsExample: EloOptions = {
+  K: 32,
+  drawScore: 0.6,
+};
+
+// ---------------------------------------------------------
+// Hoist-safe mocks for modules we don't want to fully exercise here.
+// We use the REAL single-elimination module to validate bracket wiring.
+// ---------------------------------------------------------
 
 // ---- standings dispatcher (mock) ----
 vi.mock('../src/standings', () => ({
@@ -32,6 +73,7 @@ vi.mock('../src/standings', () => ({
         wins: 0, losses: 0, draws: 0, byes: 0, roundsPlayed: 0,
         gameWins: 0, gameLosses: 0, gameDraws: 0, penalties: 0, opponents: [],
         eliminationRound: 3,
+        elimRound: 3,
       }];
     }
     return [];
@@ -87,9 +129,6 @@ import * as swissPairingsMod from '../src/pairings/swiss';
 import * as rrPairingsMod from '../src/pairings/roundrobin';
 import * as ratingsMod from '../src/ratings';
 
-// ---- Types for guards ----
-import type { SingleEliminationStandingRow } from '../src/index';
-
 // helpers
 const pidFromSlot = (s: any): string | undefined =>
   (s && s.kind === 'seed' ? s.playerId : undefined);
@@ -118,6 +157,58 @@ describe('Public API exports (src/index.ts)', () => {
 
     expect(api.updateEloRatings).toBeTypeOf('function');
   });
+
+  // Optional: tighten value export surface (only value exports, not types)
+  it('does not accidentally leak unexpected value exports', () => {
+    const keys = Object.keys(api).sort();
+
+    expect(keys).toEqual(
+      [
+        'MatchResult',
+        'computeStandings',
+        'computeSingleEliminationStandings',
+        'generatePairings',
+        'generatePairingsDeprecated',
+        'generateSwissPairings',
+        'buildRoundRobinSchedule',
+        'getRoundRobinRound',
+        'generateSingleEliminationBracket',
+        'applyResult',
+        'autoAdvanceByes',
+        'seedPositions',
+        'updateEloRatings',
+      ].sort(),
+    );
+  });
+
+  // "No import leakage": ensure exports map only exposes intended entrypoints
+  it('does not expose internal subpaths via package.json exports', () => {
+    const pkgJsonPath = resolve(__dirname, '../package.json');
+    const pkg = JSON.parse(readFileSync(pkgJsonPath, 'utf8')) as {
+      exports?: Record<string, unknown>;
+    };
+
+    expect(pkg.exports).toBeDefined();
+
+    const exportKeys = Object.keys(pkg.exports!).sort();
+    expect(exportKeys).toEqual(
+      [
+        '.',
+        './wasm',
+        './wasm/ratings.wasm',
+        './package.json',
+      ].sort(),
+    );
+
+    // Guard against obvious future mistakes
+    for (const key of exportKeys) {
+      expect(key.startsWith('./dist')).toBe(false);
+      expect(key.startsWith('./src')).toBe(false);
+      expect(key.startsWith('./standings')).toBe(false);
+      expect(key.startsWith('./pairings')).toBe(false);
+      expect(key.startsWith('./ratings')).toBe(false);
+    }
+  });
 });
 
 describe('Standings dispatcher (mocked) — swiss | roundrobin | singleelimination', () => {
@@ -142,7 +233,7 @@ describe('Standings dispatcher (mocked) — swiss | roundrobin | singleeliminati
     }
   });
 
-  // NEW test: forwards tiebreakVirtualBye through public API
+  // forwards tiebreakVirtualBye through public API
   it('forwards tiebreakVirtualBye option to the standings dispatcher (swiss)', () => {
     const opt = {
       eventId: 'VB-FWD',

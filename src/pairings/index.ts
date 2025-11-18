@@ -128,9 +128,10 @@ function getRoundRobinRoundOrThrow(
 // Back-compat export (soft-deprecate)
 // ------------------------------
 /**
- * @deprecated Use `generateSwissPairings` or the generic
- * `generatePairings({ mode: 'swiss', standings, history, options })`.
+ * @deprecated Use `generatePairings` with `{ mode: 'swiss', ... }`
+ * or call `generateSwissPairings` directly.
  */
+
 export function generatePairingsDeprecated(
   standings: ReadonlyArray<StandingRow>,
   history: ReadonlyArray<Match>,

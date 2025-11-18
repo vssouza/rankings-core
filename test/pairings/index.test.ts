@@ -24,6 +24,7 @@ vi.mock('../../src/pairings/roundrobin', () => ({
 
 // Now import facade under test + the mocked modules (to assert calls)
 import {
+  generatePairingsDeprecated,
   generatePairings,
   type PairingRequest,
   type PairingResult,
@@ -43,6 +44,29 @@ function pidFromSlot(s: any): string | undefined {
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe('pairings/index facade — coverage edges', () => {
+  it('generatePairingsDeprecated proxies to generateSwissPairings (back-compat)', () => {
+    const standings = [
+      { playerId: 'S1', rank: 1, matchPoints: 0, mwp: 0, omwp: 0, gwp: 0, ogwp: 0, sb: 0, wins: 0, losses: 0, draws: 0, byes: 0, roundsPlayed: 0, gameWins: 0, gameLosses: 0, gameDraws: 0, penalties: 0, opponents: [] },
+    ] as any;
+    const history: any[] = [];
+    const options: any = { eventId: 'COVER-DEPR' };
+
+    const res = generatePairingsDeprecated(standings, history, options);
+    // Our swiss module is mocked; a call proves the proxy was used.
+    expect((swiss.generateSwissPairings as any).mock.calls.length).toBe(1);
+    expect(res).toBeDefined();
+  });
+
+  it('exhaustiveness guard path: unknown mode returns the input object (runtime)', () => {
+    // Force an invalid mode through typing to execute the "never" fallback.
+    const bogus: any = { mode: 'totally-unknown-mode' };
+    const out = generatePairings(bogus as any);
+    // Implementation returns the same object via the _exhaustive fallback.
+    expect(out).toBe(bogus);
+  });
 });
 
 describe('pairings/index facade — swiss mode', () => {

@@ -34,7 +34,8 @@
       "import": "./dist/wasm/index.js",
       "default": "./dist/wasm/index.js"
     },
-    "./wasm/ratings.wasm": "./dist/wasm/ratings.wasm"
+    "./wasm/ratings.wasm": "./dist/wasm/ratings.wasm",
+    "./package.json": "./package.json"
   },
   "overrides": {
     "vite": "6.3.6",
@@ -56,7 +57,10 @@
     "prepare": "npm run build",
     "prepublishOnly": "npm run typecheck && npm test && npm run build",
     "wasm:build": "mkdir -p dist/wasm && asc --config wasm/asconfig.json --target release",
-    "wasm:dev": "asc --config wasm/asconfig.json --target debug -b dist/wasm/ratings.wasm"
+    "wasm:dev": "asc --config wasm/asconfig.json --target debug -b dist/wasm/ratings.wasm",
+    "bench:swiss": "tsx benchmarks/swiss-standings.bench.ts",
+    "bench:roundrobin": "tsx benchmarks/roundrobin-standings.bench.ts",
+    "bench:singleelimination": "tsx benchmarks/singleelimination-standings.bench.ts"
   },
   "publishConfig": {
     "access": "public"
@@ -71,7 +75,9 @@
     "eslint": "^9.38.0",
     "rollup": "^4.52.5",
     "rollup-plugin-copy": "^3.5.0",
+    "ts-node": "^10.9.2",
     "tslib": "^2.8.1",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }

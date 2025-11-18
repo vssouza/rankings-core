@@ -10,5 +10,5 @@
     "skipLibCheck": true
   },
   "include": ["src/**/*"],
-  "exclude": ["wasm/assembly", "dist", "public"]
+  "exclude": ["wasm/assembly", "wasm/dist", "dist", "public"]
 }

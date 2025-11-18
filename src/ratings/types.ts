@@ -1,13 +1,17 @@
 // src/ratings/types.ts
-import type { PlayerID } from '../standings/types';
+import type { PlayerID } from "../standings/types";
 
-export type RatingMode = 'elo' | 'glicko2'; // glicko2 later
+export type RatingMode = "elo" | "glicko2"; // glicko2 later
 
 // Generic “batch update” request (mode-dispatched)
 export type RatingRequest =
-  | { mode: 'elo';    matches: EloMatch[];   base?: Record<PlayerID, number>; options?: EloOptions }
-  // | { mode: 'glicko2'; ... } // later
-  ;
+  | {
+      mode: "elo";
+      matches: EloMatch[];
+      base?: Record<PlayerID, number>;
+      options?: EloOptions;
+    };
+// | { mode: 'glicko2'; ... } // later
 
 export interface RatingResult {
   ratings: Record<PlayerID, number>;
@@ -15,7 +19,7 @@ export interface RatingResult {
 }
 
 // ---------- ELO-specific types (re-exported by ratings/index.ts) ----------
-export type EloResult = 'A' | 'B' | 'draw';
+export type EloResult = "A" | "B" | "draw";
 
 export interface EloMatch {
   a: PlayerID;
@@ -25,19 +29,28 @@ export interface EloMatch {
 }
 
 export interface EloOptions {
-  K?: number;                  // default 32
-  KDraw?: number;              // default K
+  K?: number; // default 32
+  KDraw?: number; // default K
   perPlayerK?: Record<PlayerID, number>;
-  initialRating?: number;      // default 1500
-  floor?: number;              // optional
-  cap?: number;                // optional
-  mode?: 'sequential' | 'simultaneous'; // default sequential
-    drawScore?: number; // <-- add this
+  initialRating?: number; // default 1500
+  floor?: number; // optional
+  cap?: number; // optional
+  mode?: "sequential" | "simultaneous"; // default sequential
+
+  /**
+   * Value between 0 and 1 used as the score for a draw.
+   * Default is 0.5 (pure draw). You can tweak this
+   * (e.g. 0.6 or 0.4) to bias draws slightly in one direction.
+   */
+  drawScore?: number;
 }
 
 export interface EloUpdateResult extends RatingResult {
-  mode: 'elo';
+  mode: "elo";
 }
 
-export function isDraw(r: EloResult): r is 'draw' { return r === 'draw'; }
+export function isDraw(r: EloResult): r is "draw" {
+  return r === "draw";
+}
+
 export const DEFAULT_RATING = 1500;

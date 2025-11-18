@@ -156,4 +156,9 @@ export interface ComputeSingleEliminationOptions {
 export interface SingleEliminationStandingRow extends StandingRow {
   /** e.g. maxRound+1 for champion, or the round they lost in */
   eliminationRound: number;
+
+  /**
+   * @deprecated Use `eliminationRound` instead.
+   */
+  elimRound?: number;
 }
