@@ -4,6 +4,8 @@ A zero-dependency TypeScript library to compute and manage **tournament standing
 
 Includes **ELO rating updates** for leagues and persistent skill tracking, plus an optional **WebAssembly (WASM)** build for ultra-fast browser use.
 
+Repo: [rankings-core GitHub](https://github.com/vssouza/rankings-core)
+
 ---
 
 ## ✨ Features
