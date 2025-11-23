@@ -1,6 +1,6 @@
 {
   "name": "rankings-core",
-  "version": "2.3.2",
+  "version": "2.4.0",
   "description": "Swiss + Buchholz standings calculator for TCG/board game events (match points, OMW, GWP, OGWP, SB, safe H2H).",
   "keywords": [
     "swiss",
