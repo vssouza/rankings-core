@@ -12,6 +12,15 @@ export enum MatchResult {
   FORFEIT_LOSS = "FORFEIT_L",
 }
 
+/**
+ * How a tournament should interpret "retired" players.
+ *
+ * - "withdraw": player is dropped; only their already-played matches count.
+ * - "forfeit": player is treated as having lost all unplayed scheduled matches
+ *   (primarily meaningful for round-robin).
+ */
+export type RetirementMode = "withdraw" | "forfeit";
+
 export interface Match {
   id: string;
   round: number;
@@ -57,6 +66,13 @@ export interface StandingRow {
 
   penalties: number;
   opponents: PlayerID[];
+
+  /**
+   * Whether this player has retired/dropped from the event.
+   * Standings engines may simply propagate this flag from input,
+   * while pairing engines can use it to skip players for future rounds.
+   */
+  retired?: boolean;
 }
 
 // ---- Options shared helpers ----
@@ -107,6 +123,12 @@ export interface ComputeSwissOptions {
    *   { enabled: true, mwp: 0.5, gwp: 0.5 }
    */
   tiebreakVirtualBye?: TiebreakVirtualByeOptions;
+
+  /**
+   * How to interpret players marked as `retired` in this Swiss event.
+   * Default (when omitted) is "withdraw".
+   */
+  retirementMode?: RetirementMode;
 }
 
 // ---- Round-robin standings options ----
@@ -131,6 +153,15 @@ export interface ComputeRoundRobinOptions {
    * Default: disabled.
    */
   tiebreakVirtualBye?: TiebreakVirtualByeOptions;
+
+  /**
+   * How to interpret players marked as `retired` in this round-robin event.
+   * Default (when omitted) is "withdraw".
+   *
+   * In particular, "forfeit" allows engines to treat all unplayed scheduled
+   * matches involving a retired player as forfeit losses for that player.
+   */
+  retirementMode?: RetirementMode;
 }
 
 // ---- Single elimination standings ----
@@ -147,6 +178,15 @@ export interface ComputeSingleEliminationOptions {
    * to honor it. Kept for future expansion.
    */
   useBronzeMatch?: boolean;
+
+  /**
+   * How to interpret players marked as `retired` in this single-elim bracket.
+   * Default (when omitted) is "withdraw".
+   *
+   * A future implementation may use "forfeit" to mark walkovers or
+   * mid-bracket retirements as explicit forfeit results.
+   */
+  retirementMode?: RetirementMode;
 }
 
 /**

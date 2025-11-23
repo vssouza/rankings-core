@@ -7,7 +7,12 @@
  * Deterministic: choices are based on a stable seed (eventId).
  */
 
-import type { Match, PlayerID, StandingRow } from "../standings/types";
+import type {
+  Match,
+  PlayerID,
+  StandingRow,
+  RetirementMode,
+} from "../standings/types";
 
 // ---------- Types ----------
 
@@ -17,12 +22,20 @@ export interface Pairing {
 }
 
 export interface SwissPairingOptions {
-  eventId?: string;           // seed for deterministic choices (default: 'rankings-core')
-  avoidRematches?: boolean;   // default: true
-  protectTopN?: number;       // keep top-N in group if possible (default: 0)
+  eventId?: string;               // seed for deterministic choices (default: 'rankings-core')
+  avoidRematches?: boolean;       // default: true
+  protectTopN?: number;           // keep top-N in group if possible (default: 0)
   preferGroupIntegrity?: boolean; // reserved for future use (currently groups are strict)
-  byePoints?: number;         // informational; default 3
-  maxBacktrack?: number;      // cap DFS steps; default 2000
+  byePoints?: number;             // informational; default 3
+  maxBacktrack?: number;          // cap DFS steps; default 2000
+
+  /**
+   * How to interpret players marked as `retired` in the input standings.
+   * For Swiss pairings, both "withdraw" and "forfeit" behave the same:
+   * retired players simply do not receive new pairings.
+   * Default (when omitted) is "withdraw".
+   */
+  retirementMode?: RetirementMode;
 }
 
 export interface SwissPairingResult {
@@ -62,10 +75,15 @@ export function generateSwissPairings(
     preferGroupIntegrity = true, // reserved (groups are already strict)
     byePoints = 3,               // informational only for now
     maxBacktrack = 2000,
+    retirementMode = "withdraw",
   } = options || {};
 
+  // For Swiss pairings, both "withdraw" and "forfeit" currently behave the same:
+  // we ignore retired players when constructing the pairing pool.
+  const activeStandings = standings.filter((s) => !s.retired);
+
   // --- derived state
-  const players: PlayerID[] = standings.map((s) => s.playerId);
+  const players: PlayerID[] = activeStandings.map((s) => s.playerId);
   const unpaired = new Set<PlayerID>(players);
   const playedWith: Record<PlayerID, Set<PlayerID>> = Object.create(null);
   const byesTaken = new Set<PlayerID>();
@@ -100,7 +118,7 @@ export function generateSwissPairings(
 
   // --- group by match points (score groups), preserve standings order
   const groups = new Map<number, PlayerID[]>();
-  for (const s of standings) {
+  for (const s of activeStandings) {
     const list = groups.get(s.matchPoints) ?? [];
     list.push(s.playerId);
     groups.set(s.matchPoints, list);
@@ -130,7 +148,7 @@ export function generateSwissPairings(
   }));
 
   const standingsIndex: Record<PlayerID, number> = Object.create(null);
-  standings.forEach((s, idx) => {
+  activeStandings.forEach((s, idx) => {
     standingsIndex[s.playerId] = idx;
   });
 
@@ -176,7 +194,8 @@ export function generateSwissPairings(
           if (clean.length === 0) return false; // force backtrack up the tree
         }
 
-        const candidates = clean.length > 0 ? clean : (allowRematches ? dirty : []);
+        const candidates =
+          clean.length > 0 ? clean : allowRematches ? dirty : [];
 
         // rank candidates: adjacency → fewer downfloats → seed
         candidates.sort((x, y) => {
@@ -279,13 +298,15 @@ export function generateSwissPairings(
 
   // Ensure deterministic ordering of pairings (by standings rank then seed)
   const pos: Record<PlayerID, number> = Object.create(null);
-  standings.forEach((s, i) => {
+  activeStandings.forEach((s, i) => {
     pos[s.playerId] = i;
   });
   pairings.sort((p1, p2) => {
-    const a1 = pos[p1.a] ?? 0, a2 = pos[p2.a] ?? 0;
+    const a1 = pos[p1.a] ?? 0,
+      a2 = pos[p2.a] ?? 0;
     if (a1 !== a2) return a1 - a2;
-    const b1 = pos[p1.b] ?? 0, b2 = pos[p2.b] ?? 0;
+    const b1 = pos[p1.b] ?? 0,
+      b2 = pos[p2.b] ?? 0;
     if (b1 !== b2) return b1 - b2;
     return seedKey(p1.a + "::" + p1.b) - seedKey(p2.a + "::" + p2.b);
   });

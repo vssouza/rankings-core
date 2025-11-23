@@ -22,9 +22,11 @@ Repo: [rankings-core GitHub](https://github.com/vssouza/rankings-core)
     - Champion: `eliminationRound === maxRound + 1`  
   - Optional bronze match semantics (via `useBronzeMatch` in single-elim standings)
   - **Virtual Bye Player** for Swiss tie-breakers — include BYE rounds in OMW%/OGWP calculations as if played vs a fixed virtual opponent
+  - **Retired / dropped players** — mark players as retired on `StandingRow` (or via `tagRetired`) so Swiss pairings skip them when generating future rounds
 
 - 🤝 **Pairings**
   - Swiss pairing generator (avoids rematches, assigns/rotates byes, light backtracking)
+  - Swiss pairings respect `StandingRow.retired` and never pair or assign a BYE to dropped players
   - Round-Robin schedule generator (supports odd/even players, stable byes)
   - Single Elimination bracket generator — build bracket from seeds, auto-advance R1 BYEs, route losers to bronze match if enabled
   - Seed interleaving helper (`seedPositions(size)`) for standard 1-vs-N placement
@@ -108,11 +110,67 @@ console.table(
 ```
 
 **Virtual bye behaviour:**
-
 - Each BYE a player receives contributes a **virtual opponent** into OMW%/OGWP.
 - The virtual opponent is *not* shown anywhere, only affects tie-break math.
 - You control its “strength” via `tiebreakVirtualBye.mwp` and `gwp`.
 - Respects tie-break floors like `tiebreakFloors.opponentPctFloor`.
+
+---
+
+### Swiss – Retired / dropped players
+
+For Swiss events you can mark players as **retired/dropped** so they no longer
+receive pairings or BYEs in future rounds.
+
+1. Compute standings as usual.
+2. Tag which players have retired (via `tagRetired` or by setting `retired: true` yourself).
+3. Generate Swiss pairings from those tagged standings.
+
+```ts
+import {
+  computeStandings,
+  generateSwissPairings,
+  MatchResult,
+  tagRetired,
+} from "rankings-core";
+
+const matches = [
+  // Round 1
+  { id: "r1-a1", round: 1, playerId: "A", opponentId: "B", result: MatchResult.WIN },
+  { id: "r1-b1", round: 1, playerId: "B", opponentId: "A", result: MatchResult.LOSS },
+  { id: "r1-c1", round: 1, playerId: "C", opponentId: "D", result: MatchResult.WIN },
+  { id: "r1-d1", round: 1, playerId: "D", opponentId: "C", result: MatchResult.LOSS },
+];
+
+// 1) Compute Swiss standings after Round 1
+const swissRows = computeStandings({
+  mode: "swiss",
+  matches,
+  options: { eventId: "MY-SWISS" },
+});
+
+// 2) Suppose B drops from the event
+const retiredIds = ["B"];
+
+// Use helper to mark dropped players (adds `retired?: boolean` to StandingRow)
+const standingsWithRetired = tagRetired(swissRows, retiredIds);
+
+// 3) Generate pairings for the next round
+const pairingResult = generateSwissPairings(standingsWithRetired, matches, {
+  eventId: "MY-SWISS",
+  // retirementMode is reserved for future behaviour; currently both modes act as "withdraw"
+  retirementMode: "withdraw",
+});
+
+// pairingResult.pairings and pairingResult.bye will never include player "B"
+```
+
+Notes:
+- `StandingRow` has an optional `retired?: boolean` flag.
+- Swiss pairings (`generateSwissPairings`) ignore rows where `retired === true`:
+  - They will not be paired.
+  - They will never receive the BYE.
+- You can either set `retired` yourself or use the `tagRetired(rows, retiredIds)` helper.
 
 ---
 
@@ -164,7 +222,7 @@ import { computeStandings, MatchResult } from "rankings-core";
 
 const matches = [
   // Semifinals
-  { id: "sf1-a", round: 1, playerId: "A", opponentId: "B", result: MatchResult.WIN },
+  { id: "sf1-a", round: 1, playerId: "A", opponentId: "B", result: MatchResult.WWIN },
   { id: "sf1-b", round: 1, playerId: "B", opponentId: "A", result: MatchResult.LOSS },
   { id: "sf2-c", round: 1, playerId: "C", opponentId: "D", result: MatchResult.WIN },
   { id: "sf2-d", round: 1, playerId: "D", opponentId: "C", result: MatchResult.LOSS },
@@ -194,7 +252,6 @@ console.table(
 ```
 
 **`eliminationRound` semantics:**
-
 - Let `maxRound` be the deepest round seen in `matches`.
 - If a player **wins** a match in `maxRound`, they are the champion:  
   `eliminationRound = maxRound + 1`.
@@ -238,6 +295,11 @@ interface ComputeStandingsRequest {
       mwp?: number; // match win% of virtual opponent
       gwp?: number; // game win% of virtual opponent
     };
+
+    // Retirement mode (reserved for future behaviour expansion)
+    // Currently, Swiss pairings treat `StandingRow.retired === true` as "withdrawn"
+    // when you call `generateSwissPairings` with those rows.
+    retirementMode?: "withdraw" | "forfeit";
   };
 }
 ```
@@ -283,6 +345,26 @@ console.log(result);
   rematchesUsed: []
 }
 */
+```
+
+You can also pass in standings that include `retired: true` (for example, via `tagRetired(...)`):
+
+```ts
+const taggedStandings = [
+  { playerId: "A", matchPoints: 9, rank: 1, opponents: [], retired: false },
+  { playerId: "B", matchPoints: 9, rank: 2, opponents: [], retired: true }, // dropped
+  { playerId: "C", matchPoints: 6, rank: 3, opponents: [], retired: false },
+  { playerId: "D", matchPoints: 6, rank: 4, opponents: [], retired: false },
+];
+
+const nextRound = generatePairings({
+  mode: "swiss",
+  standings: taggedStandings,
+  history: [],
+  options: { eventId: "ROUND-4" },
+});
+
+// Player "B" will not appear in `nextRound.pairings` or as `nextRound.bye`
 ```
 
 ---
@@ -462,6 +544,7 @@ Core areas covered:
 - Round-Robin standings & schedules
 - Single Elimination standings (`eliminationRound`, double-loss finals, seeding fallback)
 - Swiss & RR pairing rules and rematch avoidance
+- Retirement support for Swiss pairings via `StandingRow.retired` and `tagRetired`
 - ELO rating updates and edge cases
 
 Some glue code (e.g. internal WASM loaders) may be intentionally excluded from coverage to keep the signal focused on core logic.
@@ -481,6 +564,9 @@ If you’re upgrading from earlier versions:
   - No champion is produced.
   - Both receive `eliminationRound = maxRound` and are ordered via seeding fallback.
 - Swiss can optionally use the **virtual bye** feature for tie-break calculations.
+- Swiss pairings now support **retired/dropped players**:
+  - Mark players as retired (`StandingRow.retired = true` or via `tagRetired`).
+  - Retired players are excluded from future pairings and BYEs.
 
 ---
 
@@ -493,6 +579,7 @@ If you’re upgrading from earlier versions:
 - [x] Optional WebAssembly build for browsers  
 - [x] Single Elimination bracket + standings (`eliminationRound`)  
 - [x] Virtual bye player for Swiss tie-breakers  
+- [x] Retired/dropped Swiss players (`StandingRow.retired`, `tagRetired`)  
 - [ ] Additional rating systems (e.g. Glicko-2)  
 - [ ] JSON schema / input validation helpers  
 

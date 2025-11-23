@@ -25,6 +25,7 @@ import type {
   ComputeRoundRobinOptions,
   ComputeSingleEliminationOptions,
   SingleEliminationStandingRow,
+  PlayerID,
 } from './types';
 
 import { computeSwissStandings } from './swiss';
@@ -37,6 +38,14 @@ export type ComputeStandingsOptions =
   | ({ mode: 'swiss' } & ComputeSwissOptions)
   | ({ mode: 'roundrobin' } & ComputeRoundRobinOptions)
   | ({ mode: 'singleelimination' } & ComputeSingleEliminationOptions);
+
+export function tagRetired(
+  rows: ReadonlyArray<StandingRow>,
+  retiredIds: ReadonlyArray<PlayerID>
+): StandingRow[] {
+  const set = new Set(retiredIds);
+  return rows.map((r) => ({ ...r, retired: set.has(r.playerId) }));
+}
 
 export type ComputeStandingsRequest =
   | {

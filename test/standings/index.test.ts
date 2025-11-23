@@ -1,112 +1,175 @@
-import { describe, it, expect } from 'vitest';
-import {
-  computeStandings,
-  MatchResult,
-} from '../../src/standings';
+import { describe, it, expect } from "vitest";
+import { computeStandings, MatchResult, tagRetired } from "../../src/standings";
 import type {
   Match,
   StandingRow,
   SingleEliminationStandingRow,
-} from '../../src/standings';
+} from "../../src/standings";
 
-describe('standings index entrypoint', () => {
+describe("standings index entrypoint", () => {
   it('dispatches to swiss when mode is "swiss"', () => {
     const matches: Match[] = [
       {
-        id: 'r1-a',
+        id: "r1-a",
         round: 1,
-        playerId: 'A',
-        opponentId: 'B',
+        playerId: "A",
+        opponentId: "B",
         result: MatchResult.WIN,
-        gameWins: 2, gameLosses: 0, gameDraws: 0,
+        gameWins: 2,
+        gameLosses: 0,
+        gameDraws: 0,
       },
       {
-        id: 'r1-b',
+        id: "r1-b",
         round: 1,
-        playerId: 'B',
-        opponentId: 'A',
+        playerId: "B",
+        opponentId: "A",
         result: MatchResult.LOSS,
-        gameWins: 0, gameLosses: 2, gameDraws: 0,
+        gameWins: 0,
+        gameLosses: 2,
+        gameDraws: 0,
       },
     ];
 
     const res = computeStandings({
-      mode: 'swiss',
+      mode: "swiss",
       matches,
       options: {
-        eventId: 'swiss-test',
+        eventId: "swiss-test",
       },
     }) as StandingRow[];
 
     expect(res).toHaveLength(2);
-    expect(res[0].playerId).toBe('A');
+    expect(res[0].playerId).toBe("A");
     expect(res[0].matchPoints).toBeGreaterThan(res[1].matchPoints);
   });
 
   it('dispatches to roundrobin when mode is "roundrobin"', () => {
     const matches: Match[] = [
       {
-        id: 'r1-a',
+        id: "r1-a",
         round: 1,
-        playerId: 'A',
-        opponentId: 'B',
+        playerId: "A",
+        opponentId: "B",
         result: MatchResult.WIN,
-        gameWins: 2, gameLosses: 0, gameDraws: 0,
+        gameWins: 2,
+        gameLosses: 0,
+        gameDraws: 0,
       },
       {
-        id: 'r1-b',
+        id: "r1-b",
         round: 1,
-        playerId: 'B',
-        opponentId: 'A',
+        playerId: "B",
+        opponentId: "A",
         result: MatchResult.LOSS,
-        gameWins: 0, gameLosses: 2, gameDraws: 0,
+        gameWins: 0,
+        gameLosses: 2,
+        gameDraws: 0,
       },
       {
-        id: 'r1-a2',
+        id: "r1-a2",
         round: 1,
-        playerId: 'A',
-        opponentId: 'C',
+        playerId: "A",
+        opponentId: "C",
         result: MatchResult.LOSS,
-        gameWins: 0, gameLosses: 2, gameDraws: 0,
+        gameWins: 0,
+        gameLosses: 2,
+        gameDraws: 0,
       },
       {
-        id: 'r1-c2',
+        id: "r1-c2",
         round: 1,
-        playerId: 'C',
-        opponentId: 'A',
+        playerId: "C",
+        opponentId: "A",
         result: MatchResult.WIN,
-        gameWins: 2, gameLosses: 0, gameDraws: 0,
+        gameWins: 2,
+        gameLosses: 0,
+        gameDraws: 0,
       },
     ];
 
     const res = computeStandings({
-      mode: 'roundrobin',
+      mode: "roundrobin",
       matches,
       options: {
-        eventId: 'rr-test',
+        eventId: "rr-test",
       },
     }) as StandingRow[];
 
-    expect(res.map((r) => r.playerId).sort()).toEqual(['A', 'B', 'C'].sort());
+    expect(res.map((r) => r.playerId).sort()).toEqual(["A", "B", "C"].sort());
   });
 
   it('dispatches to single elimination when mode is "singleelimination"', () => {
     const matches: Match[] = [
       // semis
-      { id: 'sf1-a', round: 1, playerId: 'A', opponentId: 'B', result: MatchResult.WIN,  gameWins: 2, gameLosses: 0, gameDraws: 0 },
-      { id: 'sf1-b', round: 1, playerId: 'B', opponentId: 'A', result: MatchResult.LOSS, gameWins: 0, gameLosses: 2, gameDraws: 0 },
-      { id: 'sf2-c', round: 1, playerId: 'C', opponentId: 'D', result: MatchResult.WIN,  gameWins: 2, gameLosses: 0, gameDraws: 0 },
-      { id: 'sf2-d', round: 1, playerId: 'D', opponentId: 'C', result: MatchResult.LOSS, gameWins: 0, gameLosses: 2, gameDraws: 0 },
+      {
+        id: "sf1-a",
+        round: 1,
+        playerId: "A",
+        opponentId: "B",
+        result: MatchResult.WIN,
+        gameWins: 2,
+        gameLosses: 0,
+        gameDraws: 0,
+      },
+      {
+        id: "sf1-b",
+        round: 1,
+        playerId: "B",
+        opponentId: "A",
+        result: MatchResult.LOSS,
+        gameWins: 0,
+        gameLosses: 2,
+        gameDraws: 0,
+      },
+      {
+        id: "sf2-c",
+        round: 1,
+        playerId: "C",
+        opponentId: "D",
+        result: MatchResult.WIN,
+        gameWins: 2,
+        gameLosses: 0,
+        gameDraws: 0,
+      },
+      {
+        id: "sf2-d",
+        round: 1,
+        playerId: "D",
+        opponentId: "C",
+        result: MatchResult.LOSS,
+        gameWins: 0,
+        gameLosses: 2,
+        gameDraws: 0,
+      },
       // final
-      { id: 'f-a', round: 2, playerId: 'A', opponentId: 'C', result: MatchResult.WIN,    gameWins: 2, gameLosses: 0, gameDraws: 0 },
-      { id: 'f-c', round: 2, playerId: 'C', opponentId: 'A', result: MatchResult.LOSS,   gameWins: 0, gameLosses: 2, gameDraws: 0 },
+      {
+        id: "f-a",
+        round: 2,
+        playerId: "A",
+        opponentId: "C",
+        result: MatchResult.WIN,
+        gameWins: 2,
+        gameLosses: 0,
+        gameDraws: 0,
+      },
+      {
+        id: "f-c",
+        round: 2,
+        playerId: "C",
+        opponentId: "A",
+        result: MatchResult.LOSS,
+        gameWins: 0,
+        gameLosses: 2,
+        gameDraws: 0,
+      },
     ];
 
     const res = computeStandings({
-      mode: 'singleelimination',
+      mode: "singleelimination",
       matches,
       options: {
-        eventId: 'se-test',
+        eventId: "se-test",
         seeding: {
           A: 1,
           C: 2,
@@ -118,22 +181,22 @@ describe('standings index entrypoint', () => {
 
     expect(res).toHaveLength(4);
     // champion
-    expect(res[0].playerId).toBe('A');
+    expect(res[0].playerId).toBe("A");
     expect(res[0].eliminationRound).toBe(3); // maxRound=2 → champ=3
 
     // finalist
-    expect(res[1].playerId).toBe('C');
+    expect(res[1].playerId).toBe("C");
     expect(res[1].eliminationRound).toBe(2);
 
     // semifinal losers
     const lastTwo = [res[2].playerId, res[3].playerId].sort();
-    expect(lastTwo).toEqual(['B', 'D'].sort());
+    expect(lastTwo).toEqual(["B", "D"].sort());
   });
 });
 
 // ---------------- NEW: virtual-bye coverage via the standings facade ----------------
 
-describe('standings index entrypoint – swiss with virtual-bye option', () => {
+describe("standings index entrypoint – swiss with virtual-bye option", () => {
   /**
    * Scenario for deterministic OMW%/OGWP:
    *  - R1: A gets BYE
@@ -146,82 +209,195 @@ describe('standings index entrypoint – swiss with virtual-bye option', () => {
    * Same math for OGWP in this tiny data set.
    */
   const baseMatches: Match[] = [
-    { id: 'r1-A-bye', round: 1, playerId: 'A', opponentId: null, result: MatchResult.BYE,  gameWins: 0, gameLosses: 0, gameDraws: 0 },
-    { id: 'r1-B-C-b', round: 1, playerId: 'B', opponentId: 'C', result: MatchResult.WIN,  gameWins: 2, gameLosses: 0, gameDraws: 0 },
-    { id: 'r1-C-B-b', round: 1, playerId: 'C', opponentId: 'B', result: MatchResult.LOSS, gameWins: 0, gameLosses: 2, gameDraws: 0 },
-    { id: 'r2-A-B-a', round: 2, playerId: 'A', opponentId: 'B', result: MatchResult.WIN,  gameWins: 2, gameLosses: 0, gameDraws: 0 },
-    { id: 'r2-B-A-a', round: 2, playerId: 'B', opponentId: 'A', result: MatchResult.LOSS, gameWins: 0, gameLosses: 2, gameDraws: 0 },
+    {
+      id: "r1-A-bye",
+      round: 1,
+      playerId: "A",
+      opponentId: null,
+      result: MatchResult.BYE,
+      gameWins: 0,
+      gameLosses: 0,
+      gameDraws: 0,
+    },
+    {
+      id: "r1-B-C-b",
+      round: 1,
+      playerId: "B",
+      opponentId: "C",
+      result: MatchResult.WIN,
+      gameWins: 2,
+      gameLosses: 0,
+      gameDraws: 0,
+    },
+    {
+      id: "r1-C-B-b",
+      round: 1,
+      playerId: "C",
+      opponentId: "B",
+      result: MatchResult.LOSS,
+      gameWins: 0,
+      gameLosses: 2,
+      gameDraws: 0,
+    },
+    {
+      id: "r2-A-B-a",
+      round: 2,
+      playerId: "A",
+      opponentId: "B",
+      result: MatchResult.WIN,
+      gameWins: 2,
+      gameLosses: 0,
+      gameDraws: 0,
+    },
+    {
+      id: "r2-B-A-a",
+      round: 2,
+      playerId: "B",
+      opponentId: "A",
+      result: MatchResult.LOSS,
+      gameWins: 0,
+      gameLosses: 2,
+      gameDraws: 0,
+    },
   ];
 
-  it('default (virtual-bye disabled): BYE excluded from OMW%/OGWP', () => {
+  it("default (virtual-bye disabled): BYE excluded from OMW%/OGWP", () => {
     const res = computeStandings({
-      mode: 'swiss',
+      mode: "swiss",
       matches: baseMatches,
-      options: { eventId: 'IDX-VB-NONE' },
+      options: { eventId: "IDX-VB-NONE" },
     }) as StandingRow[];
 
-    const A = res.find(r => r.playerId === 'A')!;
+    const A = res.find((r) => r.playerId === "A")!;
     expect(A).toBeDefined();
     expect(A.omwp).toBeCloseTo(1.0, 10);
     expect(A.ogwp).toBeCloseTo(1.0, 10);
     // Virtual opponent is not surfaced
-    expect(A.opponents).toEqual(['B']);
+    expect(A.opponents).toEqual(["B"]);
   });
 
-  it('enabled: adds a 0.5 virtual entry per BYE to OMW%/OGWP', () => {
+  it("enabled: adds a 0.5 virtual entry per BYE to OMW%/OGWP", () => {
     const res = computeStandings({
-      mode: 'swiss',
+      mode: "swiss",
       matches: baseMatches,
       options: {
-        eventId: 'IDX-VB-ON',
+        eventId: "IDX-VB-ON",
         tiebreakVirtualBye: { enabled: true, mwp: 0.5, gwp: 0.5 },
       },
     }) as StandingRow[];
 
-    const A = res.find(r => r.playerId === 'A')!;
+    const A = res.find((r) => r.playerId === "A")!;
     expect(A).toBeDefined();
     expect(A.omwp).toBeCloseTo(0.75, 10);
     expect(A.ogwp).toBeCloseTo(0.75, 10);
     // Still invisible as an opponent
-    expect(A.opponents).toEqual(['B']);
+    expect(A.opponents).toEqual(["B"]);
   });
 
-  it('applies opponent floor to virtual-bye values', () => {
+  it("applies opponent floor to virtual-bye values", () => {
     const res = computeStandings({
-      mode: 'swiss',
+      mode: "swiss",
       matches: baseMatches,
       options: {
-        eventId: 'IDX-VB-FLOOR',
+        eventId: "IDX-VB-FLOOR",
         tiebreakFloors: { opponentPctFloor: 0.33 },
         tiebreakVirtualBye: { enabled: true, mwp: 0.1, gwp: 0.1 }, // below floor
       },
     }) as StandingRow[];
 
-    const A = res.find(r => r.playerId === 'A')!;
+    const A = res.find((r) => r.playerId === "A")!;
     // mean([1.0, 0.33]) ≈ 0.665
     expect(A.omwp).toBeCloseTo((1.0 + 0.33) / 2, 3);
     expect(A.ogwp).toBeCloseTo((1.0 + 0.33) / 2, 3);
   });
 
-  it('multiple BYEs contribute multiple virtual entries', () => {
+  it("multiple BYEs contribute multiple virtual entries", () => {
     const matches2: Match[] = [
       ...baseMatches,
-      { id: 'r3-A-bye', round: 3, playerId: 'A', opponentId: null, result: MatchResult.BYE, gameWins: 0, gameLosses: 0, gameDraws: 0 },
+      {
+        id: "r3-A-bye",
+        round: 3,
+        playerId: "A",
+        opponentId: null,
+        result: MatchResult.BYE,
+        gameWins: 0,
+        gameLosses: 0,
+        gameDraws: 0,
+      },
     ];
 
     const res = computeStandings({
-      mode: 'swiss',
+      mode: "swiss",
       matches: matches2,
       options: {
-        eventId: 'IDX-VB-2BYES',
+        eventId: "IDX-VB-2BYES",
         tiebreakVirtualBye: { enabled: true, mwp: 0.5, gwp: 0.5 },
       },
     }) as StandingRow[];
 
-    const A = res.find(r => r.playerId === 'A')!;
+    const A = res.find((r) => r.playerId === "A")!;
     // mean([1.0, 0.5, 0.5]) = 2/3
     expect(A.omwp).toBeCloseTo(2 / 3, 10);
     expect(A.ogwp).toBeCloseTo(2 / 3, 10);
-    expect(A.opponents).toEqual(['B']);
+    expect(A.opponents).toEqual(["B"]);
+  });
+
+  describe("tagRetired helper", () => {
+    it("marks only the specified players as retired", () => {
+      const rows: StandingRow[] = [
+        {
+          playerId: "A",
+          rank: 1,
+          matchPoints: 9,
+          mwp: 1,
+          omwp: 1,
+          gwp: 1,
+          ogwp: 1,
+          sb: 0,
+          wins: 3,
+          losses: 0,
+          draws: 0,
+          byes: 0,
+          roundsPlayed: 3,
+          gameWins: 6,
+          gameLosses: 0,
+          gameDraws: 0,
+          penalties: 0,
+          opponents: [],
+        },
+        {
+          playerId: "B",
+          rank: 2,
+          matchPoints: 6,
+          mwp: 0.66,
+          omwp: 0.5,
+          gwp: 0.66,
+          ogwp: 0.5,
+          sb: 0,
+          wins: 2,
+          losses: 1,
+          draws: 0,
+          byes: 0,
+          roundsPlayed: 3,
+          gameWins: 4,
+          gameLosses: 2,
+          gameDraws: 0,
+          penalties: 0,
+          opponents: [],
+        },
+      ];
+
+      const tagged = tagRetired(rows, ["B"]);
+
+      const A = tagged.find((r) => r.playerId === "A")!;
+      const B = tagged.find((r) => r.playerId === "B")!;
+
+      expect(A.retired).toBeFalsy();
+      expect(B.retired).toBe(true);
+
+      // ensure we didn't mutate original objects
+      expect((rows[0] as any).retired).toBeUndefined();
+      expect((rows[1] as any).retired).toBeUndefined();
+    });
   });
 });

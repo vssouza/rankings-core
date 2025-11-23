@@ -18,6 +18,8 @@ export type {
   ComputeSwissOptions,
   ComputeRoundRobinOptions,
   ComputeSingleEliminationOptions,
+  // NEW: expose retirement mode type
+  RetirementMode,
 } from "./standings/types";
 
 export { MatchResult } from "./standings/types";
