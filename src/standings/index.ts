@@ -18,6 +18,9 @@ export type {
 } from './types';
 export { MatchResult } from './types';
 
+// NEW: forfeit retirement helper
+export { createForfeitMatchesForRetirements, type ForfeitRetirementInput } from "./forfeit";
+
 import type {
   Match,
   StandingRow,

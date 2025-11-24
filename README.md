@@ -22,7 +22,9 @@ Repo: [rankings-core GitHub](https://github.com/vssouza/rankings-core)
     - Champion: `eliminationRound === maxRound + 1`  
   - Optional bronze match semantics (via `useBronzeMatch` in single-elim standings)
   - **Virtual Bye Player** for Swiss tie-breakers — include BYE rounds in OMW%/OGWP calculations as if played vs a fixed virtual opponent
-  - **Retired / dropped players** — mark players as retired on `StandingRow` (or via `tagRetired`) so Swiss pairings skip them when generating future rounds
+  - **Retired / dropped players**
+    - Mark players as retired on `StandingRow` (or via `tagRetired`) so Swiss pairings skip them when generating future rounds
+    - Optional helper `createForfeitMatchesForRetirements` to award **forfeit wins** in the retirement round
 
 - 🤝 **Pairings**
   - Swiss pairing generator (avoids rematches, assigns/rotates byes, light backtracking)
@@ -158,7 +160,8 @@ const standingsWithRetired = tagRetired(swissRows, retiredIds);
 // 3) Generate pairings for the next round
 const pairingResult = generateSwissPairings(standingsWithRetired, matches, {
   eventId: "MY-SWISS",
-  // retirementMode is reserved for future behaviour; currently both modes act as "withdraw"
+  // retirementMode influences how YOUR app plans to treat drops;
+  // the pairing engine itself simply skips rows with retired: true.
   retirementMode: "withdraw",
 });
 
@@ -171,6 +174,117 @@ Notes:
   - They will not be paired.
   - They will never receive the BYE.
 - You can either set `retired` yourself or use the `tagRetired(rows, retiredIds)` helper.
+
+---
+
+### Swiss – Retirement modes: **withdraw** vs **forfeit**
+
+`rankings-core` supports two conceptual retirement modes for Swiss events:
+
+- **`"withdraw"`** – the player simply stops playing further rounds.
+- **`"forfeit"`** – in addition to withdrawing, you want their opponent to receive a win (forfeit) in the current round.
+
+The library treats these as a **two-step process**:
+
+1. **Decide scoring for the retirement round**
+   - If you want a pure withdraw (no automatic win): simply do nothing special for that round.
+   - If you want a forfeit: call `createForfeitMatchesForRetirements(...)` to synthesize `FORFEIT_WIN` / `FORFEIT_LOSS` results.
+
+2. **Mark the player as retired going forward**
+   - Use `tagRetired` (or set `retired: true`) before generating the *next* round’s pairings.  
+   - Swiss pairings will skip those players entirely.
+
+#### Forfeit helper: `createForfeitMatchesForRetirements`
+
+```ts
+import {
+  computeStandings,
+  generateSwissPairings,
+  MatchResult,
+  tagRetired,
+  createForfeitMatchesForRetirements,
+  type ForfeitRetirementInput,
+} from "rankings-core";
+
+// assume we already have some previous rounds
+const existingMatches = [...]; // Match[]
+
+const currentStandings = computeStandings({
+  mode: "swiss",
+  matches: existingMatches,
+  options: { eventId: "SWISS-FORFEIT" },
+});
+
+// Generate *tentative* Swiss pairings for round N+1
+const roundNumber = 3;
+const tentative = generateSwissPairings(currentStandings, existingMatches, {
+  eventId: "SWISS-FORFEIT",
+});
+
+// Players who announce they are dropping *this* round
+const retiringNow = ["P3"];
+
+const input: ForfeitRetirementInput = {
+  round: roundNumber,
+  pairings: tentative.pairings,
+  retired: retiringNow,
+  existingMatches, // optional, used to avoid duplicating matches
+};
+
+const forfeitMatches = createForfeitMatchesForRetirements(input);
+
+// New canonical match list including forfeits
+const matchesWithForfeits = [...existingMatches, ...forfeitMatches];
+
+// Recompute standings *including* forfeit results
+const afterForfeit = computeStandings({
+  mode: "swiss",
+  matches: matchesWithForfeits,
+  options: { eventId: "SWISS-FORFEIT" },
+});
+
+// Mark those players as retired for future rounds
+const standingsWithRetired = tagRetired(afterForfeit, retiringNow);
+
+// Future rounds: they will not be paired
+const nextRoundPairings = generateSwissPairings(standingsWithRetired, matchesWithForfeits, {
+  eventId: "SWISS-FORFEIT",
+  retirementMode: "forfeit",
+});
+```
+
+**What the helper does:**
+
+For each pairing `{ a, b }` in the given round:
+
+- If **exactly one** of (`a`, `b`) is in `retired`:
+  - It generates **two mirrored Match entries**:
+    - Winner-side: `result: MatchResult.FORFEIT_WIN`
+    - Loser-side: `result: MatchResult.FORFEIT_LOSS`
+  - The winner is the **non-retired** player.
+- If both or neither player is retired, it leaves the pairing alone.
+
+These synthetic results:
+
+- Affect **match points, MWP, OMW%, SB**, etc. like any other WIN/LOSS.
+- Leave `gameWins`/`gameLosses` **undefined** by default, so they don’t distort game-level percentages unless you choose to set them.
+
+**Practical difference between the modes:**
+
+- **Withdraw**
+  - You **do not** call `createForfeitMatchesForRetirements`.
+  - The retiring player simply disappears from future pairings.
+  - Their opponent may:
+    - be manually re-paired by your app, or
+    - receive a BYE if you encode this as a BYE match instead.
+- **Forfeit**
+  - You call `createForfeitMatchesForRetirements` for the current round.
+  - The opponent gains a **forfeit win**, which:
+    - Gives them match points for this round.
+    - Contributes to tiebreakers as a normal result (except game percentages, unless you set game fields).
+  - From the next round onwards, the retired player behaves the same as `"withdraw"` (never paired again).
+
+The `retirementMode` option in Swiss pairings is primarily a **semantic flag / configuration hint** for your application logic; the pairing engine itself only cares about the `retired` flag on rows. The actual forfeit vs withdraw scoring is implemented via the matches you feed into `computeStandings`.
 
 ---
 
@@ -222,7 +336,7 @@ import { computeStandings, MatchResult } from "rankings-core";
 
 const matches = [
   // Semifinals
-  { id: "sf1-a", round: 1, playerId: "A", opponentId: "B", result: MatchResult.WWIN },
+  { id: "sf1-a", round: 1, playerId: "A", opponentId: "B", result: MatchResult.WIN },
   { id: "sf1-b", round: 1, playerId: "B", opponentId: "A", result: MatchResult.LOSS },
   { id: "sf2-c", round: 1, playerId: "C", opponentId: "D", result: MatchResult.WIN },
   { id: "sf2-d", round: 1, playerId: "D", opponentId: "C", result: MatchResult.LOSS },
@@ -296,9 +410,10 @@ interface ComputeStandingsRequest {
       gwp?: number; // game win% of virtual opponent
     };
 
-    // Retirement mode (reserved for future behaviour expansion)
-    // Currently, Swiss pairings treat `StandingRow.retired === true` as "withdrawn"
-    // when you call `generateSwissPairings` with those rows.
+    // Swiss only: retirement behaviour (semantic)
+    // The pairing engine respects `StandingRow.retired === true`.
+    // Use `createForfeitMatchesForRetirements` if you want to
+    // score the retirement round as a forfeit instead of a withdraw.
     retirementMode?: "withdraw" | "forfeit";
   };
 }
@@ -544,7 +659,8 @@ Core areas covered:
 - Round-Robin standings & schedules
 - Single Elimination standings (`eliminationRound`, double-loss finals, seeding fallback)
 - Swiss & RR pairing rules and rematch avoidance
-- Retirement support for Swiss pairings via `StandingRow.retired` and `tagRetired`
+- Retirement support for Swiss pairings via `StandingRow.retired`, `tagRetired`,
+  and `createForfeitMatchesForRetirements`
 - ELO rating updates and edge cases
 
 Some glue code (e.g. internal WASM loaders) may be intentionally excluded from coverage to keep the signal focused on core logic.
@@ -564,9 +680,14 @@ If you’re upgrading from earlier versions:
   - No champion is produced.
   - Both receive `eliminationRound = maxRound` and are ordered via seeding fallback.
 - Swiss can optionally use the **virtual bye** feature for tie-break calculations.
-- Swiss pairings now support **retired/dropped players**:
+- Swiss pairings support **retired/dropped players**:
   - Mark players as retired (`StandingRow.retired = true` or via `tagRetired`).
   - Retired players are excluded from future pairings and BYEs.
+- New **forfeit retirement helper**:
+  - Use `createForfeitMatchesForRetirements` to synthesize `FORFEIT_WIN` / `FORFEIT_LOSS`
+    for the round in which a player retires.
+  - This lets you choose between a pure withdraw (no automatic win) and a scored forfeit
+    for that round.
 
 ---
 
@@ -579,7 +700,7 @@ If you’re upgrading from earlier versions:
 - [x] Optional WebAssembly build for browsers  
 - [x] Single Elimination bracket + standings (`eliminationRound`)  
 - [x] Virtual bye player for Swiss tie-breakers  
-- [x] Retired/dropped Swiss players (`StandingRow.retired`, `tagRetired`)  
+- [x] Retired/dropped Swiss players (`StandingRow.retired`, `tagRetired`, `createForfeitMatchesForRetirements`)
 - [ ] Additional rating systems (e.g. Glicko-2)  
 - [ ] JSON schema / input validation helpers  
 

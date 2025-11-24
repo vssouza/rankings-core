@@ -31,12 +31,14 @@ export { MatchResult } from "./standings/types";
 export {
   computeStandings,
   type ComputeStandingsRequest,
+  // NEW: retirement helpers
+  tagRetired,
+  createForfeitMatchesForRetirements,
+  type ForfeitRetirementInput,
 } from "./standings";
 
 // If you want to expose the single-elim engine directly as well:
-export {
-  computeSingleEliminationStandings,
-} from "./standings/singleelimination";
+export { computeSingleEliminationStandings } from "./standings/singleelimination";
 
 // ---------------------------------------------------------
 // Pairings facade + modes
@@ -88,10 +90,7 @@ export {
 // Ratings (ELO)
 // ---------------------------------------------------------
 
-export {
-  updateEloRatings,
-  type EloOptions,
-} from "./ratings";
+export { updateEloRatings, type EloOptions } from "./ratings";
 
 // ---------------------------------------------------------
 // (Optional) WASM bridge

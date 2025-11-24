@@ -1,19 +1,29 @@
 // test/index.test.ts
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 // ---- Types for guards ----
-import type { SingleEliminationStandingRow, EloOptions } from '../src';
+import type { SingleEliminationStandingRow, EloOptions } from "../src";
+
+import type { ForfeitRetirementInput } from "../src";
 
 // ---------------------------------------------------------
 // Compile-time type sanity checks for public API types
 // ---------------------------------------------------------
 
+// This should compile if ForfeitRetirementInput is exported correctly
+const _forfeitInputExample: ForfeitRetirementInput = {
+  round: 3,
+  pairings: [{ a: "A", b: "B" }],
+  retired: ["B"],
+};
+
+
 // This will fail to compile if SingleEliminationStandingRow
 // does NOT allow `elimRound?: number` or misses required fields.
 const _singleElimRowExample: SingleEliminationStandingRow = {
-  playerId: 'P1',
+  playerId: "P1",
   rank: 1,
   matchPoints: 9,
   mwp: 1,
@@ -78,113 +88,146 @@ vi.mock('../src/standings', () => ({
     }
     return [];
   }),
+
+  // NEW: mock retirement helpers so root exports are functions
+  tagRetired: vi.fn((rows: any[], retiredIds: string[]) =>
+    rows.map((r) => ({
+      ...r,
+      retired: retiredIds.includes(r.playerId),
+    })),
+  ),
+
+  createForfeitMatchesForRetirements: vi.fn(() => []),
 }));
 
+
 // ---- pairings/swiss (mock) ----
-vi.mock('../src/pairings/swiss', () => ({
+vi.mock("../src/pairings/swiss", () => ({
   generateSwissPairings: vi.fn(() => ({
-    pairings: [{ a: 'S1', b: 'S2' }],
-    bye: 'S3',
+    pairings: [{ a: "S1", b: "S2" }],
+    bye: "S3",
     downfloats: { S2: 1 },
-    rematchesUsed: [{ a: 'S1', b: 'S2' }],
+    rematchesUsed: [{ a: "S1", b: "S2" }],
   })),
 }));
 
 // ---- pairings/roundrobin (mock) ----
-vi.mock('../src/pairings/roundrobin', () => ({
-  getRoundRobinRound: vi.fn((players: ReadonlyArray<string>, round: number) => ({
-    round,
-    pairings: players.length >= 2 ? [{ a: players[0], b: players[1] }] : [],
-    byes: players.slice(2),
-  })),
-  buildRoundRobinSchedule: vi.fn((players: string[]) => ([
+vi.mock("../src/pairings/roundrobin", () => ({
+  getRoundRobinRound: vi.fn(
+    (players: ReadonlyArray<string>, round: number) => ({
+      round,
+      pairings: players.length >= 2 ? [{ a: players[0], b: players[1] }] : [],
+      byes: players.slice(2),
+    })
+  ),
+  buildRoundRobinSchedule: vi.fn((players: string[]) => [
     {
       round: 1,
-      pairings: players.length >= 4
-        ? [{ a: players[0], b: players[1] }, { a: players[2], b: players[3] }]
-        : [],
+      pairings:
+        players.length >= 4
+          ? [
+              { a: players[0], b: players[1] },
+              { a: players[2], b: players[3] },
+            ]
+          : [],
       byes: players.slice(4),
     },
-  ])),
+  ]),
 }));
 
 // ---- ratings (mock) ----
-vi.mock('../src/ratings', () => ({
-  updateEloRatings: vi.fn((base: Record<string, number>, _matches: any[], opts: any) => ({
-    ratings: { ...base, Alice: (base.Alice ?? 1500) + 16, Bob: (base.Bob ?? 1500) - 16 },
-    // note: real type might not have 'details'; we'll guard/cast when reading
-    details: { K: opts?.K ?? 32 },
-  })),
+vi.mock("../src/ratings", () => ({
+  updateEloRatings: vi.fn(
+    (base: Record<string, number>, _matches: any[], opts: any) => ({
+      ratings: {
+        ...base,
+        Alice: (base.Alice ?? 1500) + 16,
+        Bob: (base.Bob ?? 1500) - 16,
+      },
+      // note: real type might not have 'details'; we'll guard/cast when reading
+      details: { K: opts?.K ?? 32 },
+    })
+  ),
 }));
 
 // ---- REAL single-elimination pairings (no mock) ----
-import * as seReal from '../src/pairings/singleelimination';
+import * as seReal from "../src/pairings/singleelimination";
 
 // ---- Root public API under test ----
-import * as api from '../src/index';
+import * as api from "../src/index";
 
 // ---- Also import mocked modules to assert calls ----
-import * as standingsMod from '../src/standings';
-import * as swissPairingsMod from '../src/pairings/swiss';
-import * as rrPairingsMod from '../src/pairings/roundrobin';
-import * as ratingsMod from '../src/ratings';
+import * as standingsMod from "../src/standings";
+import * as swissPairingsMod from "../src/pairings/swiss";
+import * as rrPairingsMod from "../src/pairings/roundrobin";
+import * as ratingsMod from "../src/ratings";
 
 // helpers
 const pidFromSlot = (s: any): string | undefined =>
-  (s && s.kind === 'seed' ? s.playerId : undefined);
+  s && s.kind === "seed" ? s.playerId : undefined;
 
 function isSingleElimRow(r: unknown): r is SingleEliminationStandingRow {
-  return !!r && typeof r === 'object' && ('eliminationRound' in (r as any) || 'elimRound' in (r as any));
+  return (
+    !!r &&
+    typeof r === "object" &&
+    ("eliminationRound" in (r as any) || "elimRound" in (r as any))
+  );
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('Public API exports (src/index.ts)', () => {
-  it('exposes standings, pairings, ratings, and single-elim helpers', () => {
-    expect(api.computeStandings).toBeTypeOf('function');
+describe("Public API exports (src/index.ts)", () => {
+  it("exposes standings, pairings, ratings, and single-elim helpers", () => {
+    expect(api.computeStandings).toBeTypeOf("function");
 
-    expect(api.generatePairings).toBeTypeOf('function');
-    expect(api.generateSwissPairings).toBeTypeOf('function');
-    expect(api.buildRoundRobinSchedule).toBeTypeOf('function');
-    expect(api.getRoundRobinRound).toBeTypeOf('function');
+    expect(api.generatePairings).toBeTypeOf("function");
+    expect(api.generateSwissPairings).toBeTypeOf("function");
+    expect(api.buildRoundRobinSchedule).toBeTypeOf("function");
+    expect(api.getRoundRobinRound).toBeTypeOf("function");
 
-    expect(api.generateSingleEliminationBracket).toBeTypeOf('function');
-    expect(api.applyResult).toBeTypeOf('function');
-    expect(api.autoAdvanceByes).toBeTypeOf('function');
-    expect(api.seedPositions).toBeTypeOf('function');
+    expect(api.generateSingleEliminationBracket).toBeTypeOf("function");
+    expect(api.applyResult).toBeTypeOf("function");
+    expect(api.autoAdvanceByes).toBeTypeOf("function");
+    expect(api.seedPositions).toBeTypeOf("function");
 
-    expect(api.updateEloRatings).toBeTypeOf('function');
+    expect(api.updateEloRatings).toBeTypeOf("function");
+
+    // NEW retirement helpers
+    expect(api.tagRetired).toBeTypeOf("function");
+    expect(api.createForfeitMatchesForRetirements).toBeTypeOf("function");
   });
 
   // Optional: tighten value export surface (only value exports, not types)
-  it('does not accidentally leak unexpected value exports', () => {
+  it("does not accidentally leak unexpected value exports", () => {
     const keys = Object.keys(api).sort();
 
     expect(keys).toEqual(
       [
-        'MatchResult',
-        'computeStandings',
-        'computeSingleEliminationStandings',
-        'generatePairings',
-        'generatePairingsDeprecated',
-        'generateSwissPairings',
-        'buildRoundRobinSchedule',
-        'getRoundRobinRound',
-        'generateSingleEliminationBracket',
-        'applyResult',
-        'autoAdvanceByes',
-        'seedPositions',
-        'updateEloRatings',
-      ].sort(),
+        "MatchResult",
+        "applyResult",
+        "autoAdvanceByes",
+        "buildRoundRobinSchedule",
+        "computeSingleEliminationStandings",
+        "computeStandings",
+        "createForfeitMatchesForRetirements", // NEW
+        "generatePairings",
+        "generatePairingsDeprecated",
+        "generateSingleEliminationBracket",
+        "generateSwissPairings",
+        "getRoundRobinRound",
+        "seedPositions",
+        "tagRetired", // NEW
+        "updateEloRatings",
+      ].sort()
     );
   });
 
   // "No import leakage": ensure exports map only exposes intended entrypoints
-  it('does not expose internal subpaths via package.json exports', () => {
-    const pkgJsonPath = resolve(__dirname, '../package.json');
-    const pkg = JSON.parse(readFileSync(pkgJsonPath, 'utf8')) as {
+  it("does not expose internal subpaths via package.json exports", () => {
+    const pkgJsonPath = resolve(__dirname, "../package.json");
+    const pkg = JSON.parse(readFileSync(pkgJsonPath, "utf8")) as {
       exports?: Record<string, unknown>;
     };
 
@@ -192,102 +235,113 @@ describe('Public API exports (src/index.ts)', () => {
 
     const exportKeys = Object.keys(pkg.exports!).sort();
     expect(exportKeys).toEqual(
-      [
-        '.',
-        './wasm',
-        './wasm/ratings.wasm',
-        './package.json',
-      ].sort(),
+      [".", "./wasm", "./wasm/ratings.wasm", "./package.json"].sort()
     );
 
     // Guard against obvious future mistakes
     for (const key of exportKeys) {
-      expect(key.startsWith('./dist')).toBe(false);
-      expect(key.startsWith('./src')).toBe(false);
-      expect(key.startsWith('./standings')).toBe(false);
-      expect(key.startsWith('./pairings')).toBe(false);
-      expect(key.startsWith('./ratings')).toBe(false);
+      expect(key.startsWith("./dist")).toBe(false);
+      expect(key.startsWith("./src")).toBe(false);
+      expect(key.startsWith("./standings")).toBe(false);
+      expect(key.startsWith("./pairings")).toBe(false);
+      expect(key.startsWith("./ratings")).toBe(false);
     }
   });
 });
 
-describe('Standings dispatcher (mocked) — swiss | roundrobin | singleelimination', () => {
-  it('computeStandings(swiss) passes through', () => {
-    const rows = api.computeStandings({ mode: 'swiss', matches: [], options: { eventId: 'X' } } as any);
+describe("Standings dispatcher (mocked) — swiss | roundrobin | singleelimination", () => {
+  it("computeStandings(swiss) passes through", () => {
+    const rows = api.computeStandings({
+      mode: "swiss",
+      matches: [],
+      options: { eventId: "X" },
+    } as any);
     expect(standingsMod.computeStandings).toHaveBeenCalledTimes(1);
-    expect((rows as any)[0].playerId).toBe('S1');
+    expect((rows as any)[0].playerId).toBe("S1");
   });
 
-  it('computeStandings(roundrobin) passes through', () => {
-    const rows = api.computeStandings({ mode: 'roundrobin', matches: [], options: {} } as any);
+  it("computeStandings(roundrobin) passes through", () => {
+    const rows = api.computeStandings({
+      mode: "roundrobin",
+      matches: [],
+      options: {},
+    } as any);
     expect(standingsMod.computeStandings).toHaveBeenCalledTimes(1);
-    expect((rows as any)[0].playerId).toBe('R1');
+    expect((rows as any)[0].playerId).toBe("R1");
   });
 
-  it('computeStandings(singleelimination) narrows and exposes eliminationRound', () => {
-    const rows = api.computeStandings({ mode: 'singleelimination', matches: [], options: {} } as any);
+  it("computeStandings(singleelimination) narrows and exposes eliminationRound", () => {
+    const rows = api.computeStandings({
+      mode: "singleelimination",
+      matches: [],
+      options: {},
+    } as any);
     expect(standingsMod.computeStandings).toHaveBeenCalledTimes(1);
     expect(isSingleElimRow((rows as any)[0])).toBe(true);
     if (isSingleElimRow((rows as any)[0])) {
-      expect(((rows as any)[0].eliminationRound ?? (rows as any)[0].elimRound)).toBe(3);
+      expect(
+        (rows as any)[0].eliminationRound ?? (rows as any)[0].elimRound
+      ).toBe(3);
     }
   });
 
   // forwards tiebreakVirtualBye through public API
-  it('forwards tiebreakVirtualBye option to the standings dispatcher (swiss)', () => {
+  it("forwards tiebreakVirtualBye option to the standings dispatcher (swiss)", () => {
     const opt = {
-      eventId: 'VB-FWD',
+      eventId: "VB-FWD",
       tiebreakVirtualBye: { enabled: true, mwp: 0.5, gwp: 0.5 },
     };
-    api.computeStandings({ mode: 'swiss', matches: [], options: opt } as any);
+    api.computeStandings({ mode: "swiss", matches: [], options: opt } as any);
 
     expect(standingsMod.computeStandings).toHaveBeenCalledTimes(1);
     const call = (standingsMod.computeStandings as any).mock.calls[0][0];
-    expect(call).toEqual(expect.objectContaining({
-      mode: 'swiss',
-      options: expect.objectContaining({
-        tiebreakVirtualBye: { enabled: true, mwp: 0.5, gwp: 0.5 },
-      }),
-    }));
+    expect(call).toEqual(
+      expect.objectContaining({
+        mode: "swiss",
+        options: expect.objectContaining({
+          tiebreakVirtualBye: { enabled: true, mwp: 0.5, gwp: 0.5 },
+        }),
+      })
+    );
   });
 });
 
-describe('Pairings facade — swiss (mocked)', () => {
-  it('routes to generateSwissPairings and normalizes shape', () => {
+describe("Pairings facade — swiss (mocked)", () => {
+  it("routes to generateSwissPairings and normalizes shape", () => {
     const res = api.generatePairings({
-      mode: 'swiss',
+      mode: "swiss",
       standings: [] as any,
       history: [] as any,
-      options: { eventId: 'R3' } as any,
+      options: { eventId: "R3" } as any,
     });
     expect(swissPairingsMod.generateSwissPairings).toHaveBeenCalledTimes(1);
-    expect(res.pairings).toEqual([{ a: 'S1', b: 'S2' }]);
-    expect(res.bye).toBe('S3');
+    expect(res.pairings).toEqual([{ a: "S1", b: "S2" }]);
+    expect(res.bye).toBe("S3");
     expect(res.downfloats).toEqual({ S2: 1 });
-    expect(res.rematchesUsed).toEqual([{ a: 'S1', b: 'S2' }]);
+    expect(res.rematchesUsed).toEqual([{ a: "S1", b: "S2" }]);
     expect(res.round).toBeUndefined();
     expect(res.byes).toBeUndefined();
     expect(res.bracket).toBeUndefined();
   });
 });
 
-describe('Pairings facade — roundrobin (mocked)', () => {
-  it('routes to getRoundRobinRound and maps round/byes', () => {
+describe("Pairings facade — roundrobin (mocked)", () => {
+  it("routes to getRoundRobinRound and maps round/byes", () => {
     const res = api.generatePairings({
-      mode: 'roundrobin',
-      players: ['P1', 'P2', 'P3'],
+      mode: "roundrobin",
+      players: ["P1", "P2", "P3"],
       roundNumber: 2,
       options: { fixed: true } as any,
     });
     expect(rrPairingsMod.getRoundRobinRound).toHaveBeenCalledTimes(1);
     expect(res.round).toBe(2);
-    expect(res.pairings).toEqual([{ a: 'P1', b: 'P2' }]);
-    expect(res.bye).toBe('P3');
-    expect(res.byes).toEqual(['P3']);
+    expect(res.pairings).toEqual([{ a: "P1", b: "P2" }]);
+    expect(res.bye).toBe("P3");
+    expect(res.byes).toEqual(["P3"]);
   });
 
-  it('exposes buildRoundRobinSchedule pass-through (shape only)', () => {
-    const sched = api.buildRoundRobinSchedule(['A', 'B', 'C', 'D']);
+  it("exposes buildRoundRobinSchedule pass-through (shape only)", () => {
+    const sched = api.buildRoundRobinSchedule(["A", "B", "C", "D"]);
     expect(rrPairingsMod.buildRoundRobinSchedule).toHaveBeenCalledTimes(1);
 
     // avoid direct [0] access on a nominal type; coerce to unknown[] for assertions
@@ -298,18 +352,18 @@ describe('Pairings facade — roundrobin (mocked)', () => {
   });
 });
 
-describe('Pairings facade — singleelimination (REAL module)', () => {
-  it('R1 BYEs are surfaced; pairings contain only concrete matches', () => {
+describe("Pairings facade — singleelimination (REAL module)", () => {
+  it("R1 BYEs are surfaced; pairings contain only concrete matches", () => {
     const seeds: ReadonlyArray<api.SingleElimSeedEntry> = [
-      { playerId: 'A', seed: 1 },
-      { playerId: 'B', seed: 2 },
-      { playerId: 'C', seed: 3 },
-      { playerId: 'D', seed: 4 },
-      { playerId: 'E', seed: 5 }, // → size=8, some BYEs
+      { playerId: "A", seed: 1 },
+      { playerId: "B", seed: 2 },
+      { playerId: "C", seed: 3 },
+      { playerId: "D", seed: 4 },
+      { playerId: "E", seed: 5 }, // → size=8, some BYEs
     ];
 
     const res = api.generatePairings({
-      mode: 'singleelimination',
+      mode: "singleelimination",
       seeds,
       roundNumber: 1,
       options: { bestOf: 3, thirdPlace: true },
@@ -337,30 +391,30 @@ describe('Pairings facade — singleelimination (REAL module)', () => {
     }
 
     for (const p of res.pairings) {
-      const found = rawPairs.some(q =>
-        (q.a === p.a && q.b === p.b) || (q.a === p.b && q.b === p.a)
+      const found = rawPairs.some(
+        (q) => (q.a === p.a && q.b === p.b) || (q.a === p.b && q.b === p.a)
       );
       expect(found).toBe(true);
     }
   });
 
-  it('unresolved future rounds return empty pairings but include bracket', () => {
+  it("unresolved future rounds return empty pairings but include bracket", () => {
     const seeds: ReadonlyArray<api.SingleElimSeedEntry> = [
-      { playerId: 'A', seed: 1 },
-      { playerId: 'B', seed: 2 },
-      { playerId: 'C', seed: 3 },
-      { playerId: 'D', seed: 4 },
-      { playerId: 'E', seed: 5 },
-      { playerId: 'F', seed: 6 },
-      { playerId: 'G', seed: 7 },
-      { playerId: 'H', seed: 8 },
+      { playerId: "A", seed: 1 },
+      { playerId: "B", seed: 2 },
+      { playerId: "C", seed: 3 },
+      { playerId: "D", seed: 4 },
+      { playerId: "E", seed: 5 },
+      { playerId: "F", seed: 6 },
+      { playerId: "G", seed: 7 },
+      { playerId: "H", seed: 8 },
     ];
 
     const sanity = seReal.generateSingleEliminationBracket(seeds, {});
     expect(sanity.rounds.length).toBe(3); // 4→2→1
 
     const res = api.generatePairings({
-      mode: 'singleelimination',
+      mode: "singleelimination",
       seeds,
       roundNumber: 2, // semis, unresolved if R1 not applied
     });
@@ -371,14 +425,16 @@ describe('Pairings facade — singleelimination (REAL module)', () => {
     expect(res.bracket).toBeDefined();
   });
 
-  it('direct re-exports for single-elim utilities work', () => {
+  it("direct re-exports for single-elim utilities work", () => {
     const seeds: ReadonlyArray<api.SingleElimSeedEntry> = [
-      { playerId: 'A', seed: 1 },
-      { playerId: 'B', seed: 2 },
-      { playerId: 'C', seed: 3 },
-      { playerId: 'D', seed: 4 },
+      { playerId: "A", seed: 1 },
+      { playerId: "B", seed: 2 },
+      { playerId: "C", seed: 3 },
+      { playerId: "D", seed: 4 },
     ];
-    const bracket = api.generateSingleEliminationBracket(seeds, { thirdPlace: true });
+    const bracket = api.generateSingleEliminationBracket(seeds, {
+      thirdPlace: true,
+    });
     expect(Array.isArray(bracket.rounds)).toBe(true);
     expect(api.seedPositions(4)).toEqual([1, 4, 2, 3]);
 
@@ -399,10 +455,14 @@ describe('Pairings facade — singleelimination (REAL module)', () => {
   });
 });
 
-describe('Ratings (mocked) — ELO', () => {
-  it('updateEloRatings is exposed and returns ratings', () => {
+describe("Ratings (mocked) — ELO", () => {
+  it("updateEloRatings is exposed and returns ratings", () => {
     const base = { Alice: 1500, Bob: 1500 };
-    const res = api.updateEloRatings(base, [{ a: 'Alice', b: 'Bob', result: 'A' }], { K: 32 } as any);
+    const res = api.updateEloRatings(
+      base,
+      [{ a: "Alice", b: "Bob", result: "A" }],
+      { K: 32 } as any
+    );
 
     expect(ratingsMod.updateEloRatings).toHaveBeenCalledTimes(1);
     expect(res.ratings.Alice).toBeGreaterThan(base.Alice);
