@@ -3,32 +3,51 @@ import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import typescript from '@rollup/plugin-typescript';
 
-const plugins = [
+const tsPlugin = typescript({
+  // Use the main tsconfig; tsc-build handles .d.ts, Rollup handles JS bundling
+  tsconfig: './tsconfig.json',
+  compilerOptions: {
+    // We only want JS from Rollup; declaration files come from `tsc -p tsconfig.build.json`
+    declaration: false,
+    emitDeclarationOnly: false,
+    // Let Rollup control the output location
+    outDir: undefined
+  }
+});
+
+const basePlugins = [
   resolve({ extensions: ['.mjs', '.js', '.ts'] }),
   commonjs(),
-  // Use the build tsconfig but avoid emitting d.ts from Rollup (tsc does that)
-  typescript({
-    tsconfig: './tsconfig.build.json',
-    compilerOptions: { declaration: false, emitDeclarationOnly: false }
-  })
+  tsPlugin
 ];
 
 export default [
-  // Main library bundle
+  // Main library bundle (entry: src/index.ts)
   {
     input: 'src/index.ts',
     output: [
-      { file: 'dist/index.js', format: 'esm', sourcemap: true },
-      { file: 'dist/index.cjs', format: 'cjs', sourcemap: true }
+      {
+        file: 'dist/index.js',
+        format: 'esm',
+        sourcemap: true
+      },
+      {
+        file: 'dist/index.cjs',
+        format: 'cjs',
+        sourcemap: true
+      }
     ],
-    plugins
+    plugins: basePlugins
   },
 
-  // WASM loader entry
+  // WASM loader entry (entry: wasm/index.ts)
   {
-    // If the file lives at src/wasm/index.ts, update this path accordingly
     input: 'wasm/index.ts',
-    output: { file: 'dist/wasm/index.js', format: 'esm', sourcemap: true },
-    plugins
+    output: {
+      file: 'dist/wasm/index.js',
+      format: 'esm',
+      sourcemap: true
+    },
+    plugins: basePlugins
   }
 ];

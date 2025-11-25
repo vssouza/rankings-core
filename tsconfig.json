@@ -5,10 +5,23 @@
     "lib": ["ES2023", "DOM"],
     "moduleResolution": "Bundler",
     "strict": true,
-    "declaration": true,
-    "outDir": "dist",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+
+    // These are mostly for editor/tsc, Rollup will override outDir
+    "declaration": false,
+    "outDir": "dist"
   },
-  "include": ["src/**/*"],
-  "exclude": ["wasm/assembly", "wasm/dist", "dist", "public"]
+  "include": [
+    "src/**/*",
+    "wasm/**/*.ts"
+  ],
+  "exclude": [
+    "dist",
+    "wasm/assembly",
+    "wasm/dist",
+    "public",
+    "test",
+    "tests",
+    "**/*.test.ts"
+  ]
 }

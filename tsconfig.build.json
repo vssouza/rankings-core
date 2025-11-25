@@ -1,12 +1,22 @@
 {
+  "extends": "./tsconfig.json",
   "compilerOptions": {
+    // Force TS to treat `src` as the root of the tree
+    "rootDir": "src",
     "outDir": "dist",
+
+    // Only emit declaration files; let Rollup handle JS
     "declaration": true,
-    "module": "ESNext",
-    "target": "ES2022",
-    "moduleResolution": "Bundler",
-    "lib": ["ES2023", "DOM"],
-    "strict": true
+    "emitDeclarationOnly": true
   },
-  "include": ["src/**/*", "wasm/**/*"]
+  "include": ["src/**/*"],
+  "exclude": [
+    "test",
+    "tests",
+    "**/*.test.ts",
+    "dist",
+    "wasm/assembly",
+    "wasm/dist",
+    "public"
+  ]
 }
