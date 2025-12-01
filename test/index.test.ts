@@ -19,7 +19,6 @@ const _forfeitInputExample: ForfeitRetirementInput = {
   retired: ["B"],
 };
 
-
 // This will fail to compile if SingleEliminationStandingRow
 // does NOT allow `elimRound?: number` or misses required fields.
 const _singleElimRowExample: SingleEliminationStandingRow = {
@@ -58,33 +57,81 @@ const _eloOptionsExample: EloOptions = {
 // ---------------------------------------------------------
 
 // ---- standings dispatcher (mock) ----
-vi.mock('../src/standings', () => ({
+vi.mock("../src/standings", () => ({
   computeStandings: vi.fn((req: any) => {
-    if (req.mode === 'swiss') {
-      return [{
-        playerId: 'S1', rank: 1, matchPoints: 9,
-        mwp: 1, omwp: 1, gwp: 1, ogwp: 1, sb: 0,
-        wins: 3, losses: 0, draws: 0, byes: 0, roundsPlayed: 3,
-        gameWins: 6, gameLosses: 0, gameDraws: 0, penalties: 0, opponents: [],
-      }];
+    if (req.mode === "swiss") {
+      return [
+        {
+          playerId: "S1",
+          rank: 1,
+          matchPoints: 9,
+          mwp: 1,
+          omwp: 1,
+          gwp: 1,
+          ogwp: 1,
+          sb: 0,
+          wins: 3,
+          losses: 0,
+          draws: 0,
+          byes: 0,
+          roundsPlayed: 3,
+          gameWins: 6,
+          gameLosses: 0,
+          gameDraws: 0,
+          penalties: 0,
+          opponents: [],
+        },
+      ];
     }
-    if (req.mode === 'roundrobin') {
-      return [{
-        playerId: 'R1', rank: 1, matchPoints: 6,
-        mwp: 1, omwp: 0.5, gwp: 1, ogwp: 0.5, sb: 0,
-        wins: 2, losses: 0, draws: 0, byes: 0, roundsPlayed: 2,
-        gameWins: 4, gameLosses: 0, gameDraws: 0, penalties: 0, opponents: [],
-      }];
+    if (req.mode === "roundrobin") {
+      return [
+        {
+          playerId: "R1",
+          rank: 1,
+          matchPoints: 6,
+          mwp: 1,
+          omwp: 0.5,
+          gwp: 1,
+          ogwp: 0.5,
+          sb: 0,
+          wins: 2,
+          losses: 0,
+          draws: 0,
+          byes: 0,
+          roundsPlayed: 2,
+          gameWins: 4,
+          gameLosses: 0,
+          gameDraws: 0,
+          penalties: 0,
+          opponents: [],
+        },
+      ];
     }
-    if (req.mode === 'singleelimination') {
-      return [{
-        playerId: 'E1', rank: 1, matchPoints: 0,
-        mwp: 0, omwp: 0, gwp: 0, ogwp: 0, sb: 0,
-        wins: 0, losses: 0, draws: 0, byes: 0, roundsPlayed: 0,
-        gameWins: 0, gameLosses: 0, gameDraws: 0, penalties: 0, opponents: [],
-        eliminationRound: 3,
-        elimRound: 3,
-      }];
+    if (req.mode === "singleelimination") {
+      return [
+        {
+          playerId: "E1",
+          rank: 1,
+          matchPoints: 0,
+          mwp: 0,
+          omwp: 0,
+          gwp: 0,
+          ogwp: 0,
+          sb: 0,
+          wins: 0,
+          losses: 0,
+          draws: 0,
+          byes: 0,
+          roundsPlayed: 0,
+          gameWins: 0,
+          gameLosses: 0,
+          gameDraws: 0,
+          penalties: 0,
+          opponents: [],
+          eliminationRound: 3,
+          elimRound: 3,
+        },
+      ];
     }
     return [];
   }),
@@ -94,12 +141,11 @@ vi.mock('../src/standings', () => ({
     rows.map((r) => ({
       ...r,
       retired: retiredIds.includes(r.playerId),
-    })),
+    }))
   ),
 
   createForfeitMatchesForRetirements: vi.fn(() => []),
 }));
-
 
 // ---- pairings/swiss (mock) ----
 vi.mock("../src/pairings/swiss", () => ({
@@ -211,14 +257,16 @@ describe("Public API exports (src/index.ts)", () => {
         "buildRoundRobinSchedule",
         "computeSingleEliminationStandings",
         "computeStandings",
-        "createForfeitMatchesForRetirements", // NEW
+        "computeTopCutSeeds",
+        "createForfeitMatchesForRetirements",
         "generatePairings",
         "generatePairingsDeprecated",
         "generateSingleEliminationBracket",
         "generateSwissPairings",
         "getRoundRobinRound",
+        "mergeSwissTopCutStandings",
         "seedPositions",
-        "tagRetired", // NEW
+        "tagRetired",
         "updateEloRatings",
       ].sort()
     );

@@ -26,12 +26,15 @@ Repo: [rankings-core GitHub](https://github.com/vssouza/rankings-core)
     - Mark players as retired on `StandingRow` (or via `tagRetired`) so Swiss pairings skip them when generating future rounds
     - Optional helper `createForfeitMatchesForRetirements` to award **forfeit wins** in the retirement round
 
-- 🤝 **Pairings**
+- 🤝 **Pairings & Hybrid Events**
   - Swiss pairing generator (avoids rematches, assigns/rotates byes, light backtracking)
   - Swiss pairings respect `StandingRow.retired` and never pair or assign a BYE to dropped players
   - Round-Robin schedule generator (supports odd/even players, stable byes)
   - Single Elimination bracket generator — build bracket from seeds, auto-advance R1 BYEs, route losers to bronze match if enabled
   - Seed interleaving helper (`seedPositions(size)`) for standard 1-vs-N placement
+  - **Swiss → Top Cut helpers**
+    - `computeTopCutSeeds(swissStandings, cutSize)` to derive Top N seeds from final Swiss standings (skipping retired players)
+    - `mergeSwissTopCutStandings(swissStandings, topCutStandings)` to produce a single final standings table after the top cut is over
 
 - 📈 **Ratings**
   - ELO updates (sequential & simultaneous batch modes)
@@ -288,6 +291,161 @@ The `retirementMode` option in Swiss pairings is primarily a **semantic flag / c
 
 ---
 
+### Swiss → Top Cut (seeding helper)
+
+If you run a **hybrid Swiss + Top Cut** event, you can use the helper:
+
+- `computeTopCutSeeds(swissStandings, cutSize)` → `TopCutSeed[]`
+
+`TopCutSeed` is compatible with the single-elim `SeedEntry` type, but also includes `sourceRank` so you can track where the seed came from in Swiss.
+
+```ts
+import {
+  computeStandings,
+  computeTopCutSeeds,
+  generateSingleEliminationBracket,
+} from "rankings-core";
+
+const swiss = computeStandings({
+  mode: "swiss",
+  matches: swissMatches,
+  options: { eventId: "MY-HYBRID" },
+});
+
+// Mark any retired players before seeding (they can't make top cut)
+const retiredIds = ["P17", "P23"];
+const swissWithRetired = swiss.map((row) =>
+  retiredIds.includes(row.playerId) ? { ...row, retired: true } : row
+);
+
+// Build Top 8 from non-retired Swiss standings
+const seeds = computeTopCutSeeds(swissWithRetired, 8);
+
+// `seeds` is already compatible with generateSingleEliminationBracket
+const bracket = generateSingleEliminationBracket(seeds, {
+  thirdPlace: true,
+});
+
+console.log(seeds);
+/*
+[
+  { playerId: "P05", seed: 1, sourceRank: 1 },
+  { playerId: "P02", seed: 2, sourceRank: 2 },
+  ...
+]
+*/
+```
+
+**Behaviour:**
+
+- Filters out rows with `retired === true` (dropped players can’t make top cut).
+- Sorts primarily by Swiss `rank`, with tie-break safety fallback.
+- `cutSize` is clamped to the number of eligible players.
+- Seeds are 1-based (`seed: 1` is the best Swiss performer).
+
+---
+
+### Merging Swiss + Top Cut into final standings
+
+After the single-elim top cut is complete, you often want **one final standings table** that:
+
+- Puts top-cut players first, in their top-cut order.
+- Keeps everyone else in Swiss order.
+- Renumbers `rank` from `1..N`.
+
+Use:
+
+- `mergeSwissTopCutStandings(swissStandings, topCutStandings)` → `StandingRow[]`
+
+```ts
+import {
+  computeStandings,
+  computeTopCutSeeds,
+  mergeSwissTopCutStandings,
+  generateSingleEliminationBracket,
+  applyResult,
+  MatchResult,
+} from "rankings-core";
+
+// 1) Swiss phase
+const swiss = computeStandings({
+  mode: "swiss",
+  matches: swissMatches,
+  options: { eventId: "MY-HYBRID" },
+});
+
+// 2) Build Top 8 seeds
+const seeds = computeTopCutSeeds(swiss, 8);
+
+// 3) Play a single-elim top cut from those seeds
+const bracket = generateSingleEliminationBracket(seeds, { thirdPlace: true });
+
+// ...your app collects results and calls applyResult(bracket, matchId, { winner })...
+
+// Adapt the bracket matches back into Match[] format for standings
+const topCutMatches = bracket.rounds.flatMap((round) =>
+  round.flatMap((m) => {
+    const a = (m.a && m.a.kind === "seed" && m.a.playerId) || null;
+    const b = (m.b && m.b.kind === "seed" && m.b.playerId) || null;
+    if (!a || !b || !m.result) return [];
+    const winner = m.result.winner;
+    const loser = winner === a ? b : a;
+
+    return [
+      {
+        id: `${m.id}-${winner}-W`,
+        round: m.round,
+        playerId: winner,
+        opponentId: loser,
+        result: MatchResult.WIN,
+        gameWins: 2,
+        gameLosses: 0,
+        gameDraws: 0,
+      },
+      {
+        id: `${m.id}-${loser}-L`,
+        round: m.round,
+        playerId: loser,
+        opponentId: winner,
+        result: MatchResult.LOSS,
+        gameWins: 0,
+        gameLosses: 2,
+        gameDraws: 0,
+      },
+    ];
+  })
+);
+
+// 4) Compute top cut standings (single-elim engine)
+const topCutStandings = computeStandings({
+  mode: "singleelimination",
+  matches: topCutMatches,
+  options: { eventId: "MY-HYBRID-TOPCUT" },
+});
+
+// 5) Merge into a single final table
+const finalStandings = mergeSwissTopCutStandings(swiss, topCutStandings);
+
+console.table(
+  finalStandings.map((r) => ({
+    Rank: r.rank,
+    Player: r.playerId,
+    SwissMP: r.matchPoints,
+  }))
+);
+```
+
+**Key points:**
+
+- Swiss rows are treated as the **single source of truth** for each player’s numeric fields (`matchPoints`, OMW%, etc.).
+- Top cut standings are used **only for ordering** (who goes in front of whom).
+- The merged result:
+  - Places top-cut players first, in top-cut rank order.
+  - Fills in the remaining players in Swiss order.
+  - Recomputes `rank = 1..N` across the merged table.
+
+---
+
 ### Round-Robin example (with single-entry ingestion)
 
 ```ts
@@ -407,7 +565,7 @@ interface ComputeStandingsRequest {
     tiebreakVirtualBye?: {
       enabled?: boolean;
       mwp?: number; // match win% of virtual opponent
-      gwp?: number; // game win% of virtual opponent
+      gwp?: number; // match win% of virtual opponent
     };
 
     // Swiss only: retirement behaviour (semantic)
@@ -661,6 +819,7 @@ Core areas covered:
 - Swiss & RR pairing rules and rematch avoidance
 - Retirement support for Swiss pairings via `StandingRow.retired`, `tagRetired`,
   and `createForfeitMatchesForRetirements`
+- Swiss → Top Cut helpers (`computeTopCutSeeds`, `mergeSwissTopCutStandings`)
 - ELO rating updates and edge cases
 
 Some glue code (e.g. internal WASM loaders) may be intentionally excluded from coverage to keep the signal focused on core logic.
@@ -688,6 +847,11 @@ If you’re upgrading from earlier versions:
     for the round in which a player retires.
   - This lets you choose between a pure withdraw (no automatic win) and a scored forfeit
     for that round.
+- New **Swiss → Top Cut helpers**:
+  - `computeTopCutSeeds` turns final Swiss standings into Top N single-elim seeds
+    compatible with `generateSingleEliminationBracket`.
+  - `mergeSwissTopCutStandings` merges Swiss + top cut results into a single final table
+    with ranks `1..N`.
 
 ---
 
@@ -701,6 +865,7 @@ If you’re upgrading from earlier versions:
 - [x] Single Elimination bracket + standings (`eliminationRound`)  
 - [x] Virtual bye player for Swiss tie-breakers  
 - [x] Retired/dropped Swiss players (`StandingRow.retired`, `tagRetired`, `createForfeitMatchesForRetirements`)
+- [x] Swiss → Top Cut helpers (`computeTopCutSeeds`, `mergeSwissTopCutStandings`)
 - [ ] Additional rating systems (e.g. Glicko-2)  
 - [ ] JSON schema / input validation helpers  
 

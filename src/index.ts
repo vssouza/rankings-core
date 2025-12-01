@@ -93,6 +93,20 @@ export {
 export { updateEloRatings, type EloOptions } from "./ratings";
 
 // ---------------------------------------------------------
+// Top cut helpers (Swiss → Single Elimination seeds)
+// ---------------------------------------------------------
+
+export {
+  computeTopCutSeeds,
+  type TopCutSeed,
+} from "./helpers/swisstopcut";
+
+export {
+  mergeSwissTopCutStandings,
+  type TopCutStandingLike,
+} from "./helpers/swisstopcutmerger";
+
+// ---------------------------------------------------------
 // (Optional) WASM bridge
 // ---------------------------------------------------------
 // If/when you want to expose the WASM bridge as part of the public API,
