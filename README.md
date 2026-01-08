@@ -867,7 +867,7 @@ If you’re upgrading from earlier versions:
 - [x] Retired/dropped Swiss players (`StandingRow.retired`, `tagRetired`, `createForfeitMatchesForRetirements`)
 - [x] Swiss → Top Cut helpers (`computeTopCutSeeds`, `mergeSwissTopCutStandings`)
 - [ ] Additional rating systems (e.g. Glicko-2)  
-- [ ] JSON schema / input validation helpers  
+- [x] JSON schema / input validation helpers  
 
 ---
 

@@ -1,5 +1,6 @@
 // src/ratings/index.ts
-import { updateEloRatings, expectedScore } from './elo';
+import {updateEloRatings, expectedScore} from "./elo";
+import {updateRatingsSafe, updateEloRatingsSafe} from "./safe";
 
 export type {
   RatingMode,
@@ -9,16 +10,24 @@ export type {
   EloOptions,
   EloUpdateResult,
   EloResult,
-} from './types';
+} from "./types";
 
-export { updateEloRatings, expectedScore };
+export {
+  // raw engines
+  updateEloRatings,
+  expectedScore,
+
+  // safe wrappers
+  updateRatingsSafe,
+  updateEloRatingsSafe,
+};
 
 // Generic facade – lets callers choose a mode now or later
-export function updateRatings(req: import('./types').RatingRequest) {
-  if (req.mode === 'elo') {
-    const { base = {}, matches, options } = req;
+export function updateRatings(req: import("./types").RatingRequest) {
+  if (req.mode === "elo") {
+    const {base = {}, matches, options} = req;
     return updateEloRatings(base, matches, options);
   }
-  // else if (req.mode === 'glicko2') { ... }
+
   throw new Error(`Unsupported rating mode: ${(req as any).mode}`);
 }

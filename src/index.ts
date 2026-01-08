@@ -93,7 +93,14 @@ export {
 // Ratings (ELO)
 // ---------------------------------------------------------
 
-export {updateEloRatings, type EloOptions} from "./ratings";
+export {
+  updateRatings,
+  updateEloRatings,
+  expectedScore,
+  type EloOptions,
+} from "./ratings";
+export {updateRatingsSafe, updateEloRatingsSafe} from "./ratings/safe";
+export {validateRatingRequest} from "./validations/ratings";
 
 // ---------------------------------------------------------
 // Top cut helpers (Swiss → Single Elimination seeds)
