@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>26/26</span>
+                <span class='fraction'>27/27</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>26/26</span>
+                <span class='fraction'>27/27</span>
             </div>
         
             
@@ -156,7 +156,18 @@
 <a name='L91'></a><a href='#L91'>91</a>
 <a name='L92'></a><a href='#L92'>92</a>
 <a name='L93'></a><a href='#L93'>93</a>
-<a name='L94'></a><a href='#L94'>94</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -178,6 +189,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -233,17 +253,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">23x</span>
-<span class="cline-any cline-yes">23x</span>
-<span class="cline-any cline-yes">23x</span>
-<span class="cline-any cline-yes">16x</span>
-<span class="cline-any cline-yes">23x</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-yes">26x</span>
 <span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">23x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">26x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
@@ -256,6 +276,7 @@ export type {
   PlayerID,
   Match,
   StandingRow,
+  RetirementMode, // ✅ exported for validation consumers
   // options &amp; helpers
   PointsConfig,
   TiebreakFloors,
@@ -266,11 +287,20 @@ export type {
   ComputeSingleEliminationOptions,
   // engine-specific rows
   SingleEliminationStandingRow,
-} from './types';
-export { MatchResult } from './types';
+} from "./types";
+export { MatchResult } from "./types";
 &nbsp;
-// NEW: forfeit retirement helper
-export { createForfeitMatchesForRetirements, type ForfeitRetirementInput } from "./forfeit";
+// Forfeit retirement helper
+export {
+  createForfeitMatchesForRetirements,
+  type ForfeitRetirementInput,
+} from "./forfeit";
+&nbsp;
+// ✅ Safe (validated) entrypoints
+export {
+  computeStandingsSafe,
+  createForfeitMatchesForRetirementsSafe,
+} from "./safe";
 &nbsp;
 import type {
   Match,
@@ -280,18 +310,18 @@ import type {
   ComputeSingleEliminationOptions,
   SingleEliminationStandingRow,
   PlayerID,
-} from './types';
+} from "./types";
 &nbsp;
-import { computeSwissStandings } from './swiss';
-import { computeRoundRobinStandings } from './roundrobin';
-import { computeSingleEliminationStandings } from './singleelimination';
+import { computeSwissStandings } from "./swiss";
+import { computeRoundRobinStandings } from "./roundrobin";
+import { computeSingleEliminationStandings } from "./singleelimination";
 &nbsp;
-export type StandingsMode = 'swiss' | 'roundrobin' | 'singleelimination';
+export type StandingsMode = "swiss" | "roundrobin" | "singleelimination";
 &nbsp;
 export type ComputeStandingsOptions =
-  | ({ mode: 'swiss' } &amp; ComputeSwissOptions)
-  | ({ mode: 'roundrobin' } &amp; ComputeRoundRobinOptions)
-  | ({ mode: 'singleelimination' } &amp; ComputeSingleEliminationOptions);
+  | ({ mode: "swiss" } &amp; ComputeSwissOptions)
+  | ({ mode: "roundrobin" } &amp; ComputeRoundRobinOptions)
+  | ({ mode: "singleelimination" } &amp; ComputeSingleEliminationOptions);
 &nbsp;
 export function tagRetired(
   rows: ReadonlyArray&lt;StandingRow&gt;,
@@ -303,19 +333,19 @@ export function tagRetired(
 &nbsp;
 export type ComputeStandingsRequest =
   | {
-      mode: 'swiss';
+      mode: "swiss";
       matches: Match[];
       /** Pass virtual-bye config via req.options.tiebreakVirtualBye */
       options?: ComputeSwissOptions;
     }
   | {
-      mode: 'roundrobin';
+      mode: "roundrobin";
       matches: Match[];
       /** Pass virtual-bye config via req.options.tiebreakVirtualBye */
       options?: ComputeRoundRobinOptions;
     }
   | {
-      mode: 'singleelimination';
+      mode: "singleelimination";
       matches: Match[];
       options?: ComputeSingleEliminationOptions;
     };
@@ -328,9 +358,9 @@ export type ComputeStandingsRequest =
 export function computeStandings(
   req: ComputeStandingsRequest
 ): StandingRow[] | SingleEliminationStandingRow[] {
-  if (req.mode === 'swiss') {
+  if (req.mode === "swiss") {
     return computeSwissStandings(req.matches, req.options);
-  } else if (req.mode === 'roundrobin') {
+  } else if (req.mode === "roundrobin") {
     return computeRoundRobinStandings(req.matches, req.options);
   } else {
     // singleelimination
@@ -339,9 +369,9 @@ export function computeStandings(
 }
 &nbsp;
 // Named exports for direct engine usage
-export { computeSwissStandings } from './swiss';
-export { computeRoundRobinStandings } from './roundrobin';
-export { computeSingleEliminationStandings } from './singleelimination';
+export { computeSwissStandings } from "./swiss";
+export { computeRoundRobinStandings } from "./roundrobin";
+export { computeSingleEliminationStandings } from "./singleelimination";
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -349,7 +379,7 @@ export { computeSingleEliminationStandings } from './singleelimination';
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-01-08T15:46:01.204Z
+                at 2026-01-08T18:19:57.483Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

@@ -1,12 +1,11 @@
 // test/index.test.ts
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import {describe, it, expect, vi, beforeEach} from "vitest";
+import {readFileSync} from "node:fs";
+import {resolve} from "node:path";
 
 // ---- Types for guards ----
-import type { SingleEliminationStandingRow, EloOptions } from "../src";
-
-import type { ForfeitRetirementInput } from "../src";
+import type {SingleEliminationStandingRow, EloOptions} from "../src";
+import type {ForfeitRetirementInput} from "../src";
 
 // ---------------------------------------------------------
 // Compile-time type sanity checks for public API types
@@ -15,7 +14,7 @@ import type { ForfeitRetirementInput } from "../src";
 // This should compile if ForfeitRetirementInput is exported correctly
 const _forfeitInputExample: ForfeitRetirementInput = {
   round: 3,
-  pairings: [{ a: "A", b: "B" }],
+  pairings: [{a: "A", b: "B"}],
   retired: ["B"],
 };
 
@@ -150,10 +149,10 @@ vi.mock("../src/standings", () => ({
 // ---- pairings/swiss (mock) ----
 vi.mock("../src/pairings/swiss", () => ({
   generateSwissPairings: vi.fn(() => ({
-    pairings: [{ a: "S1", b: "S2" }],
+    pairings: [{a: "S1", b: "S2"}],
     bye: "S3",
-    downfloats: { S2: 1 },
-    rematchesUsed: [{ a: "S1", b: "S2" }],
+    downfloats: {S2: 1},
+    rematchesUsed: [{a: "S1", b: "S2"}],
   })),
 }));
 
@@ -162,7 +161,7 @@ vi.mock("../src/pairings/roundrobin", () => ({
   getRoundRobinRound: vi.fn(
     (players: ReadonlyArray<string>, round: number) => ({
       round,
-      pairings: players.length >= 2 ? [{ a: players[0], b: players[1] }] : [],
+      pairings: players.length >= 2 ? [{a: players[0], b: players[1]}] : [],
       byes: players.slice(2),
     })
   ),
@@ -172,8 +171,8 @@ vi.mock("../src/pairings/roundrobin", () => ({
       pairings:
         players.length >= 4
           ? [
-              { a: players[0], b: players[1] },
-              { a: players[2], b: players[3] },
+              {a: players[0], b: players[1]},
+              {a: players[2], b: players[3]},
             ]
           : [],
       byes: players.slice(4),
@@ -191,7 +190,7 @@ vi.mock("../src/ratings", () => ({
         Bob: (base.Bob ?? 1500) - 16,
       },
       // note: real type might not have 'details'; we'll guard/cast when reading
-      details: { K: opts?.K ?? 32 },
+      details: {K: opts?.K ?? 32},
     })
   ),
 }));
@@ -243,6 +242,17 @@ describe("Public API exports (src/index.ts)", () => {
     // NEW retirement helpers
     expect(api.tagRetired).toBeTypeOf("function");
     expect(api.createForfeitMatchesForRetirements).toBeTypeOf("function");
+
+    // NEW safe wrappers
+    expect(api.computeStandingsSafe).toBeTypeOf("function");
+    expect(api.createForfeitMatchesForRetirementsSafe).toBeTypeOf("function");
+    expect(api.generatePairingsSafe).toBeTypeOf("function");
+
+    // NEW request validators + exception
+    expect(api.validateComputeStandingsRequest).toBeTypeOf("function");
+    expect(api.validatePairingRequest).toBeTypeOf("function");
+    expect(api.validateForfeitRetirementInput).toBeTypeOf("function");
+    expect(api.ValidationException).toBeTypeOf("function");
   });
 
   // Optional: tighten value export surface (only value exports, not types)
@@ -252,15 +262,19 @@ describe("Public API exports (src/index.ts)", () => {
     expect(keys).toEqual(
       [
         "MatchResult",
+        "ValidationException",
         "applyResult",
         "autoAdvanceByes",
         "buildRoundRobinSchedule",
         "computeSingleEliminationStandings",
         "computeStandings",
+        "computeStandingsSafe",
         "computeTopCutSeeds",
         "createForfeitMatchesForRetirements",
+        "createForfeitMatchesForRetirementsSafe",
         "generatePairings",
         "generatePairingsDeprecated",
+        "generatePairingsSafe",
         "generateSingleEliminationBracket",
         "generateSwissPairings",
         "getRoundRobinRound",
@@ -268,8 +282,31 @@ describe("Public API exports (src/index.ts)", () => {
         "seedPositions",
         "tagRetired",
         "updateEloRatings",
+        "validateComputeStandingsRequest",
+        "validateForfeitRetirementInput",
+        "validatePairingRequest",
       ].sort()
     );
+  });
+
+  it("exposes safe wrappers and they throw ValidationException on invalid input", () => {
+    expect(() =>
+      api.computeStandingsSafe({mode: "nope", matches: []} as any)
+    ).toThrow(api.ValidationException);
+
+    expect(() => api.generatePairingsSafe({mode: "nope"} as any)).toThrow(
+      api.ValidationException
+    );
+
+    expect(() => api.createForfeitMatchesForRetirementsSafe({} as any)).toThrow(
+      api.ValidationException
+    );
+  });
+
+  it("exposes request validators and they return ok=false on invalid input", () => {
+    expect(api.validateComputeStandingsRequest({} as any).ok).toBe(false);
+    expect(api.validatePairingRequest({} as any).ok).toBe(false);
+    expect(api.validateForfeitRetirementInput({} as any).ok).toBe(false);
   });
 
   // "No import leakage": ensure exports map only exposes intended entrypoints
@@ -302,7 +339,7 @@ describe("Standings dispatcher (mocked) — swiss | roundrobin | singleeliminati
     const rows = api.computeStandings({
       mode: "swiss",
       matches: [],
-      options: { eventId: "X" },
+      options: {eventId: "X"},
     } as any);
     expect(standingsMod.computeStandings).toHaveBeenCalledTimes(1);
     expect((rows as any)[0].playerId).toBe("S1");
@@ -337,9 +374,9 @@ describe("Standings dispatcher (mocked) — swiss | roundrobin | singleeliminati
   it("forwards tiebreakVirtualBye option to the standings dispatcher (swiss)", () => {
     const opt = {
       eventId: "VB-FWD",
-      tiebreakVirtualBye: { enabled: true, mwp: 0.5, gwp: 0.5 },
+      tiebreakVirtualBye: {enabled: true, mwp: 0.5, gwp: 0.5},
     };
-    api.computeStandings({ mode: "swiss", matches: [], options: opt } as any);
+    api.computeStandings({mode: "swiss", matches: [], options: opt} as any);
 
     expect(standingsMod.computeStandings).toHaveBeenCalledTimes(1);
     const call = (standingsMod.computeStandings as any).mock.calls[0][0];
@@ -347,7 +384,7 @@ describe("Standings dispatcher (mocked) — swiss | roundrobin | singleeliminati
       expect.objectContaining({
         mode: "swiss",
         options: expect.objectContaining({
-          tiebreakVirtualBye: { enabled: true, mwp: 0.5, gwp: 0.5 },
+          tiebreakVirtualBye: {enabled: true, mwp: 0.5, gwp: 0.5},
         }),
       })
     );
@@ -360,13 +397,13 @@ describe("Pairings facade — swiss (mocked)", () => {
       mode: "swiss",
       standings: [] as any,
       history: [] as any,
-      options: { eventId: "R3" } as any,
+      options: {eventId: "R3"} as any,
     });
     expect(swissPairingsMod.generateSwissPairings).toHaveBeenCalledTimes(1);
-    expect(res.pairings).toEqual([{ a: "S1", b: "S2" }]);
+    expect(res.pairings).toEqual([{a: "S1", b: "S2"}]);
     expect(res.bye).toBe("S3");
-    expect(res.downfloats).toEqual({ S2: 1 });
-    expect(res.rematchesUsed).toEqual([{ a: "S1", b: "S2" }]);
+    expect(res.downfloats).toEqual({S2: 1});
+    expect(res.rematchesUsed).toEqual([{a: "S1", b: "S2"}]);
     expect(res.round).toBeUndefined();
     expect(res.byes).toBeUndefined();
     expect(res.bracket).toBeUndefined();
@@ -379,11 +416,11 @@ describe("Pairings facade — roundrobin (mocked)", () => {
       mode: "roundrobin",
       players: ["P1", "P2", "P3"],
       roundNumber: 2,
-      options: { fixed: true } as any,
+      options: {fixed: true} as any,
     });
     expect(rrPairingsMod.getRoundRobinRound).toHaveBeenCalledTimes(1);
     expect(res.round).toBe(2);
-    expect(res.pairings).toEqual([{ a: "P1", b: "P2" }]);
+    expect(res.pairings).toEqual([{a: "P1", b: "P2"}]);
     expect(res.bye).toBe("P3");
     expect(res.byes).toEqual(["P3"]);
   });
@@ -403,18 +440,18 @@ describe("Pairings facade — roundrobin (mocked)", () => {
 describe("Pairings facade — singleelimination (REAL module)", () => {
   it("R1 BYEs are surfaced; pairings contain only concrete matches", () => {
     const seeds: ReadonlyArray<api.SingleElimSeedEntry> = [
-      { playerId: "A", seed: 1 },
-      { playerId: "B", seed: 2 },
-      { playerId: "C", seed: 3 },
-      { playerId: "D", seed: 4 },
-      { playerId: "E", seed: 5 }, // → size=8, some BYEs
+      {playerId: "A", seed: 1},
+      {playerId: "B", seed: 2},
+      {playerId: "C", seed: 3},
+      {playerId: "D", seed: 4},
+      {playerId: "E", seed: 5}, // → size=8, some BYEs
     ];
 
     const res = api.generatePairings({
       mode: "singleelimination",
       seeds,
       roundNumber: 1,
-      options: { bestOf: 3, thirdPlace: true },
+      options: {bestOf: 3, thirdPlace: true},
     });
 
     expect(res.round).toBe(1);
@@ -422,13 +459,13 @@ describe("Pairings facade — singleelimination (REAL module)", () => {
 
     const r1 = res.bracket!.rounds[0];
     const rawByes: string[] = [];
-    const rawPairs: Array<{ a: string; b: string }> = [];
+    const rawPairs: Array<{a: string; b: string}> = [];
     for (const m of r1) {
       const a = pidFromSlot(m.a);
       const b = pidFromSlot(m.b);
       if (a && !b) rawByes.push(a);
       else if (b && !a) rawByes.push(b);
-      else if (a && b) rawPairs.push({ a, b });
+      else if (a && b) rawPairs.push({a, b});
     }
 
     if (rawByes.length) {
@@ -448,14 +485,14 @@ describe("Pairings facade — singleelimination (REAL module)", () => {
 
   it("unresolved future rounds return empty pairings but include bracket", () => {
     const seeds: ReadonlyArray<api.SingleElimSeedEntry> = [
-      { playerId: "A", seed: 1 },
-      { playerId: "B", seed: 2 },
-      { playerId: "C", seed: 3 },
-      { playerId: "D", seed: 4 },
-      { playerId: "E", seed: 5 },
-      { playerId: "F", seed: 6 },
-      { playerId: "G", seed: 7 },
-      { playerId: "H", seed: 8 },
+      {playerId: "A", seed: 1},
+      {playerId: "B", seed: 2},
+      {playerId: "C", seed: 3},
+      {playerId: "D", seed: 4},
+      {playerId: "E", seed: 5},
+      {playerId: "F", seed: 6},
+      {playerId: "G", seed: 7},
+      {playerId: "H", seed: 8},
     ];
 
     const sanity = seReal.generateSingleEliminationBracket(seeds, {});
@@ -475,10 +512,10 @@ describe("Pairings facade — singleelimination (REAL module)", () => {
 
   it("direct re-exports for single-elim utilities work", () => {
     const seeds: ReadonlyArray<api.SingleElimSeedEntry> = [
-      { playerId: "A", seed: 1 },
-      { playerId: "B", seed: 2 },
-      { playerId: "C", seed: 3 },
-      { playerId: "D", seed: 4 },
+      {playerId: "A", seed: 1},
+      {playerId: "B", seed: 2},
+      {playerId: "C", seed: 3},
+      {playerId: "D", seed: 4},
     ];
     const bracket = api.generateSingleEliminationBracket(seeds, {
       thirdPlace: true,
@@ -491,13 +528,13 @@ describe("Pairings facade — singleelimination (REAL module)", () => {
     for (const m of r1) {
       const a = pidFromSlot(m.a);
       const b = pidFromSlot(m.b);
-      api.applyResult(bracket, m.id, { winner: a ?? b! });
+      api.applyResult(bracket, m.id, {winner: a ?? b!});
     }
     const r2 = bracket.rounds[1];
     for (const m of r2) {
       const a = pidFromSlot(m.a);
       const b = pidFromSlot(m.b);
-      api.applyResult(bracket, m.id, { winner: a ?? b! });
+      api.applyResult(bracket, m.id, {winner: a ?? b!});
     }
     expect(bracket.rounds.at(-1)![0].id).toBeDefined();
   });
@@ -505,11 +542,11 @@ describe("Pairings facade — singleelimination (REAL module)", () => {
 
 describe("Ratings (mocked) — ELO", () => {
   it("updateEloRatings is exposed and returns ratings", () => {
-    const base = { Alice: 1500, Bob: 1500 };
+    const base = {Alice: 1500, Bob: 1500};
     const res = api.updateEloRatings(
       base,
-      [{ a: "Alice", b: "Bob", result: "A" }],
-      { K: 32 } as any
+      [{a: "Alice", b: "Bob", result: "A"}],
+      {K: 32} as any
     );
 
     expect(ratingsMod.updateEloRatings).toHaveBeenCalledTimes(1);

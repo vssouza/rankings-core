@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { MatchResult } from "../../src/standings";
 import type { Match, StandingRow, SingleEliminationStandingRow } from "../../src/standings";
 
-import { ValidationException } from "../../src/validation/errors";
+import { ValidationException } from "../../src/validations/errors";
 import { computeStandingsSafe } from "../../src/standings/safe";
 
 describe("computeStandingsSafe", () => {

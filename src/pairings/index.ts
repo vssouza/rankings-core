@@ -21,6 +21,8 @@ import {
 
 export type PairingMode = 'swiss' | 'roundrobin' | 'singleelimination';
 
+export { generatePairingsSafe } from "./safe";
+
 export type PairingRequest =
   | {
       mode: 'swiss';

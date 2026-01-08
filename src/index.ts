@@ -4,8 +4,6 @@
 // ---------------------------------------------------------
 // Standings core types & options (re-exported from types module)
 // ---------------------------------------------------------
-// This avoids duplication and guarantees that the public-facing
-// types always match what the engines actually use internally.
 
 export type {
   PlayerID,
@@ -18,11 +16,10 @@ export type {
   ComputeSwissOptions,
   ComputeRoundRobinOptions,
   ComputeSingleEliminationOptions,
-  // NEW: expose retirement mode type
   RetirementMode,
 } from "./standings/types";
 
-export { MatchResult } from "./standings/types";
+export {MatchResult} from "./standings/types";
 
 // ---------------------------------------------------------
 // Standings engines
@@ -31,14 +28,18 @@ export { MatchResult } from "./standings/types";
 export {
   computeStandings,
   type ComputeStandingsRequest,
-  // NEW: retirement helpers
   tagRetired,
   createForfeitMatchesForRetirements,
   type ForfeitRetirementInput,
 } from "./standings";
 
+export {
+  computeStandingsSafe,
+  createForfeitMatchesForRetirementsSafe,
+} from "./standings/safe";
+
 // If you want to expose the single-elim engine directly as well:
-export { computeSingleEliminationStandings } from "./standings/singleelimination";
+export {computeSingleEliminationStandings} from "./standings/singleelimination";
 
 // ---------------------------------------------------------
 // Pairings facade + modes
@@ -46,11 +47,13 @@ export { computeSingleEliminationStandings } from "./standings/singleelimination
 
 export {
   generatePairings,
-  generatePairingsDeprecated, // consider marking deprecated in ./pairings
+  generatePairingsDeprecated,
   type PairingMode,
   type PairingRequest,
   type PairingResult,
 } from "./pairings";
+
+export {generatePairingsSafe} from "./pairings/safe";
 
 // ---------------------------------------------------------
 // Swiss pairing specific (optional; also reachable via ./pairings)
@@ -90,21 +93,33 @@ export {
 // Ratings (ELO)
 // ---------------------------------------------------------
 
-export { updateEloRatings, type EloOptions } from "./ratings";
+export {updateEloRatings, type EloOptions} from "./ratings";
 
 // ---------------------------------------------------------
 // Top cut helpers (Swiss → Single Elimination seeds)
 // ---------------------------------------------------------
 
-export {
-  computeTopCutSeeds,
-  type TopCutSeed,
-} from "./helpers/swisstopcut";
+export {computeTopCutSeeds, type TopCutSeed} from "./helpers/swisstopcut";
 
 export {
   mergeSwissTopCutStandings,
   type TopCutStandingLike,
 } from "./helpers/swisstopcutmerger";
+
+// ---------------------------------------------------------
+// Public validation surface (small + intentional)
+// ---------------------------------------------------------
+// Expose only request validators (useful for UI/preflight validation),
+// plus the structured error types + exception for catchable "safe" calls.
+
+export {validateComputeStandingsRequest} from "./validations/standings";
+
+export {validatePairingRequest} from "./validations/pairings";
+
+export {validateForfeitRetirementInput} from "./validations/forfeit";
+
+export {ValidationException} from "./validations/errors";
+export type {ValidationError, ValidationResult} from "./validations/errors";
 
 // ---------------------------------------------------------
 // (Optional) WASM bridge
