@@ -5,6 +5,7 @@ export type {
   PlayerID,
   Match,
   StandingRow,
+  RetirementMode, // ✅ exported for validation consumers
   // options & helpers
   PointsConfig,
   TiebreakFloors,
@@ -15,11 +16,20 @@ export type {
   ComputeSingleEliminationOptions,
   // engine-specific rows
   SingleEliminationStandingRow,
-} from './types';
-export { MatchResult } from './types';
+} from "./types";
+export { MatchResult } from "./types";
 
-// NEW: forfeit retirement helper
-export { createForfeitMatchesForRetirements, type ForfeitRetirementInput } from "./forfeit";
+// Forfeit retirement helper
+export {
+  createForfeitMatchesForRetirements,
+  type ForfeitRetirementInput,
+} from "./forfeit";
+
+// ✅ Safe (validated) entrypoints
+export {
+  computeStandingsSafe,
+  createForfeitMatchesForRetirementsSafe,
+} from "./safe";
 
 import type {
   Match,
@@ -29,18 +39,18 @@ import type {
   ComputeSingleEliminationOptions,
   SingleEliminationStandingRow,
   PlayerID,
-} from './types';
+} from "./types";
 
-import { computeSwissStandings } from './swiss';
-import { computeRoundRobinStandings } from './roundrobin';
-import { computeSingleEliminationStandings } from './singleelimination';
+import { computeSwissStandings } from "./swiss";
+import { computeRoundRobinStandings } from "./roundrobin";
+import { computeSingleEliminationStandings } from "./singleelimination";
 
-export type StandingsMode = 'swiss' | 'roundrobin' | 'singleelimination';
+export type StandingsMode = "swiss" | "roundrobin" | "singleelimination";
 
 export type ComputeStandingsOptions =
-  | ({ mode: 'swiss' } & ComputeSwissOptions)
-  | ({ mode: 'roundrobin' } & ComputeRoundRobinOptions)
-  | ({ mode: 'singleelimination' } & ComputeSingleEliminationOptions);
+  | ({ mode: "swiss" } & ComputeSwissOptions)
+  | ({ mode: "roundrobin" } & ComputeRoundRobinOptions)
+  | ({ mode: "singleelimination" } & ComputeSingleEliminationOptions);
 
 export function tagRetired(
   rows: ReadonlyArray<StandingRow>,
@@ -52,19 +62,19 @@ export function tagRetired(
 
 export type ComputeStandingsRequest =
   | {
-      mode: 'swiss';
+      mode: "swiss";
       matches: Match[];
       /** Pass virtual-bye config via req.options.tiebreakVirtualBye */
       options?: ComputeSwissOptions;
     }
   | {
-      mode: 'roundrobin';
+      mode: "roundrobin";
       matches: Match[];
       /** Pass virtual-bye config via req.options.tiebreakVirtualBye */
       options?: ComputeRoundRobinOptions;
     }
   | {
-      mode: 'singleelimination';
+      mode: "singleelimination";
       matches: Match[];
       options?: ComputeSingleEliminationOptions;
     };
@@ -77,9 +87,9 @@ export type ComputeStandingsRequest =
 export function computeStandings(
   req: ComputeStandingsRequest
 ): StandingRow[] | SingleEliminationStandingRow[] {
-  if (req.mode === 'swiss') {
+  if (req.mode === "swiss") {
     return computeSwissStandings(req.matches, req.options);
-  } else if (req.mode === 'roundrobin') {
+  } else if (req.mode === "roundrobin") {
     return computeRoundRobinStandings(req.matches, req.options);
   } else {
     // singleelimination
@@ -88,6 +98,6 @@ export function computeStandings(
 }
 
 // Named exports for direct engine usage
-export { computeSwissStandings } from './swiss';
-export { computeRoundRobinStandings } from './roundrobin';
-export { computeSingleEliminationStandings } from './singleelimination';
+export { computeSwissStandings } from "./swiss";
+export { computeRoundRobinStandings } from "./roundrobin";
+export { computeSingleEliminationStandings } from "./singleelimination";

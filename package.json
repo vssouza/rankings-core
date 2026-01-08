@@ -51,6 +51,7 @@
     "prebuild": "npm run wasm:build",
     "build": "tsc -p tsconfig.build.json && rollup -c",
     "dev": "vitest --watch",
+    "coverage": "vitest run --coverage",
     "test": "vitest run",
     "typecheck": "tsc -p . --noEmit",
     "lint": "eslint . --ext .ts",
